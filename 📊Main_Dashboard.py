@@ -107,7 +107,7 @@ def load_share_of_staked_tokens(start_date, end_date):
         FROM delegate a
         LEFT OUTER JOIN undelegate b
           ON a.monthly = b.monthly
-        # WHERE a.monthly >= '{start_date}'
+        # --- WHERE a.monthly >= '{start_date}'
         ORDER BY a.monthly DESC
         LIMIT 1
     """
@@ -148,7 +148,7 @@ def load_monthly_share_data(start_date, end_date):
                (cumulative_delegate_amount + cumulative_undelegate_amount) / 1181742149 * 100 AS share_of_staked_tokens
         FROM delegate a
         LEFT OUTER JOIN undelegate b ON a.monthly = b.monthly 
-        WHERE a.monthly >= '{start_date}'
+        # --- WHERE a.monthly >= '{start_date}'
         ORDER BY a.monthly ASC
     """
     return pd.read_sql(query, conn)
