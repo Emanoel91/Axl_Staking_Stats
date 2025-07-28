@@ -117,10 +117,46 @@ def load_share_of_staked_tokens(start_date, end_date):
     else:
         return None
 
+# --- Row2: Monthly Share of Staked Tokens from Supply -----------------------------------------------------------
+@st.cache_data
+def load_monthly_share_data(start_date, end_date):
+    query = f"""
+        WITH delegate AS (
+            SELECT TRUNC(block_timestamp,'month') AS monthly, 
+                   SUM(amount/POW(10,6)) AS delegate_amount,
+                   SUM(SUM(amount/POW(10,6))) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_delegate_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+              AND TX_SUCCEEDED = 'TRUE'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        ),
+        undelegate AS (
+            SELECT TRUNC(block_timestamp,'month') AS monthly, 
+                   SUM(amount/POW(10,6)) * -1 AS undelegate_amount,
+                   SUM(SUM(amount/POW(10,6)) * -1) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_undelegate_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'undelegate'
+              AND TX_SUCCEEDED = 'TRUE'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        )
+        SELECT a.monthly, 
+               1181742149 AS supply,
+               (cumulative_delegate_amount + cumulative_undelegate_amount) / 1181742149 * 100 AS share_of_staked_tokens
+        FROM delegate a
+        LEFT OUTER JOIN undelegate b ON a.monthly = b.monthly 
+        WHERE a.monthly >= '{start_date}'
+        ORDER BY a.monthly ASC
+    """
+    return pd.read_sql(query, conn)
 
 
 # --- Load Data ------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
+monthly_data = load_monthly_share_data(start_date, end_date)
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -130,7 +166,58 @@ if share_of_staked_tokens is not None:
 else:
     st.warning("No data available for the selected period.")
 
+# --- Row2: Plot Column-Line Chart ---------------------------------------------------------------------------------
+if not monthly_data.empty:
+    fig = go.Figure()
 
+    # Bar chart for supply
+    fig.add_trace(
+        go.Bar(
+            x=monthly_data["MONTHLY"],
+            y=monthly_data["SUPPLY"],
+            name="Supply",
+            marker_color="#0099ff",
+            yaxis="y1"
+        )
+    )
+
+    # Line chart for Share of Staked Tokens
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_data["MONTHLY"],
+            y=monthly_data["SHARE_OF_STAKED_TOKENS"],
+            name="Share of Staked Tokens (%)",
+            mode="lines+markers",
+            line=dict(color="#fc0060", width=3),
+            yaxis="y2"
+        )
+    )
+
+    # Layout with two Y axes
+    fig.update_layout(
+        title="Monthly Share of Staked Tokens from Supply",
+        xaxis=dict(title="Month"),
+        yaxis=dict(
+            title="Supply",
+            titlefont=dict(color="#0099ff"),
+            tickfont=dict(color="#0099ff")
+        ),
+        yaxis2=dict(
+            title="Share of Staked Tokens (%)",
+            titlefont=dict(color="#fc0060"),
+            tickfont=dict(color="#fc0060"),
+            overlaying="y",
+            side="right"
+        ),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        barmode="group",
+        template="plotly_white",
+        height=500
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("No data available for the selected period.")
 
 # --- Reference and Rebuild Info ---------------------------------------------------------------------------------------------------------------------
 st.markdown(
