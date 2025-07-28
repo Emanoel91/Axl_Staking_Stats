@@ -94,7 +94,7 @@ def load_share_of_staked_tokens(start_date, end_date):
     else:
         return None
 
-# --- Row2: Monthly Share Chart ---------------------------------------------------------------------------
+# --- Row2: Monthly Share Chart ---
 @st.cache_data
 def load_monthly_share_data(start_date, end_date):
     query = f"""
@@ -146,9 +146,26 @@ def load_monthly_share_data(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
+# --- Row3: All-Time Delegate KPIs ---
+@st.cache_data
+def load_delegate_kpis(start_date, end_date):
+    query = f"""
+        SELECT 
+            ROUND(SUM(amount/POW(10,6)), 2) AS amount,
+            COUNT(DISTINCT tx_id) AS txns,
+            COUNT(DISTINCT DELEGATOR_ADDRESS) AS user,
+            ROUND(AVG(amount/POW(10,6)), 2) AS avg_amount
+        FROM axelar.gov.fact_staking
+        WHERE action = 'delegate'
+          AND block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+    """
+    return pd.read_sql(query, conn)
+
 # --- Load Data -----------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
 monthly_share_df = load_monthly_share_data(start_date, end_date)
+delegate_kpis_df = load_delegate_kpis(start_date, end_date)
 
 # --- Row 1: KPI ------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -164,7 +181,7 @@ if share_of_staked_tokens is not None:
 else:
     st.warning("No data available for the selected period.")
 
-# --- Row 2: Monthly Share of Staked Tokens from Supply Chart ----------------------------------------------------------
+# --- Row 2: Monthly Share of Staked Tokens from Supply Chart ---
 if not monthly_share_df.empty:
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -185,6 +202,41 @@ if not monthly_share_df.empty:
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("No monthly data available for the selected period.")
+
+# --- Row 3: KPIs ------
+st.markdown(
+    """
+    <div style="background-color:#fc0060; padding:1px; border-radius:10px;">
+        <h2 style="color:#000000; text-align:center;">Overview</h2>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+if not delegate_kpis_df.empty:
+    amount = delegate_kpis_df["AMOUNT"].iloc[0]
+    avg_amount = delegate_kpis_df["AVG_AMOUNT"].iloc[0]
+    txns = delegate_kpis_df["TXNS"].iloc[0]
+    user = delegate_kpis_df["USER"].iloc[0]
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric(label="Total Delegated Amount (All Time)", value=f"{amount:,.2f} AXL")
+        st.caption("(Exclude Undelegate Amount)")
+
+    with col2:
+        st.metric(label="Average Delegate Amount", value=f"{avg_amount:,.2f} AXL")
+
+    with col3:
+        st.metric(label="Total Delegate Transactions", value=f"{txns:,}")
+        st.caption("(All Time)")
+
+    with col4:
+        st.metric(label="Total Delegators", value=f"{user:,}")
+        st.caption("Cumulative count of all users who have ever delegated AXL")
+else:
+    st.warning("No delegate KPI data available for the selected period.")
 
 # --- Reference and Rebuild Info --------------------------------------------------------------------------------------
 st.markdown(
