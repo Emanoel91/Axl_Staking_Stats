@@ -51,7 +51,7 @@ conn = snowflake.connector.connect(
 start_date = st.date_input("Start Date", value=pd.to_datetime("2022-08-01"))
 end_date = st.date_input("End Date", value=pd.to_datetime("2025-06-30"))
 
-# --- Query Functions ------------------------------------------------------------------------------------------------
+# --- Query Functions -------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_share_of_staked_tokens(start_date, end_date):
     query = f"""
@@ -162,10 +162,51 @@ def load_delegate_kpis(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
+# --- Row4: Current Net Staked --------
+@st.cache_data
+def load_current_net_staked(start_date, end_date):
+    query = f"""
+        WITH delegate AS (
+            SELECT 
+                TRUNC(block_timestamp,'month') AS monthly, 
+                SUM(amount/POW(10,6)) AS delegate_amount,
+                SUM(SUM(amount/POW(10,6))) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_delegate_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        ),
+        undelegate AS (
+            SELECT 
+                TRUNC(block_timestamp,'month') AS monthly, 
+                SUM(amount/POW(10,6)) * -1 AS undelegate_amount,
+                SUM(SUM(amount/POW(10,6)) * -1) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_undelegate_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'undelegate'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        )
+        SELECT 
+            ROUND((cumulative_delegate_amount + cumulative_undelegate_amount), 1) AS Net
+        FROM delegate a 
+        LEFT JOIN undelegate b ON a.monthly = b.monthly
+        WHERE a.monthly >= '{start_date}'
+        ORDER BY a.monthly DESC
+        LIMIT 1
+    """
+    df = pd.read_sql(query, conn)
+    if not df.empty:
+        return df["NET"].iloc[0]
+    else:
+        return None
+
 # --- Load Data -----------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
 monthly_share_df = load_monthly_share_data(start_date, end_date)
 delegate_kpis_df = load_delegate_kpis(start_date, end_date)
+current_net_staked = load_current_net_staked(start_date, end_date)
 
 # --- Row 1: KPI ------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -181,7 +222,7 @@ if share_of_staked_tokens is not None:
 else:
     st.warning("No data available for the selected period.")
 
-# --- Row 2: Monthly Share of Staked Tokens from Supply Chart ---
+# --- Row 2: Monthly Share of Staked Tokens from Supply Chart -------------------------
 if not monthly_share_df.empty:
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -203,7 +244,7 @@ if not monthly_share_df.empty:
 else:
     st.warning("No monthly data available for the selected period.")
 
-# --- Row 3: KPIs ------
+# --- Row 3: KPIs -------------------------------
 st.markdown(
     """
     <div style="background-color:#fc0060; padding:1px; border-radius:10px;">
@@ -237,6 +278,20 @@ if not delegate_kpis_df.empty:
         st.caption("Cumulative count of all users who have ever delegated AXL")
 else:
     st.warning("No delegate KPI data available for the selected period.")
+
+# --- Row 4: Single KPI -----------------------------
+if current_net_staked is not None:
+    st.markdown(
+        f"""
+        <div style="text-align: center; padding: 40px; background-color: #f8f9fa; border-radius: 15px; margin: 20px 0;">
+            <h2 style="font-size: 32px; margin-bottom: 10px;">Current Net Staked</h2>
+            <p style="font-size: 48px; font-weight: bold; color: #2e7d32;">{current_net_staked:,.1f} AXL</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    st.warning("No data available for Current Net Staked in the selected period.")
 
 # --- Reference and Rebuild Info --------------------------------------------------------------------------------------
 st.markdown(
