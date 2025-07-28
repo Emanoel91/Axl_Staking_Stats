@@ -355,7 +355,7 @@ if not monthly_data.empty:
     fig1.add_trace(go.Scatter(x=monthly_data['monthly'], y=monthly_data['Net Delegated Amount'],
                               name='Net Delegated Amount', mode='lines+markers', line=dict(color='blue', width=2), yaxis='y2'))
     fig1.update_layout(
-        title="Monthly Delegate and Undelegate Amount + Net [AXL]",
+        title="Monthly Delegate and Undelegate Amount + Net (AXL)",
         barmode='group',
         yaxis=dict(title="$AXL", side='left'),
         yaxis2=dict(title="$AXL", overlaying='y', side='right'),
@@ -370,8 +370,8 @@ if not monthly_data.empty:
     # Monthly Number of Users
     with col1:
         fig2 = go.Figure()
-        fig2.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegators'], name='Delegators', marker_color='blue')
-        fig2.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegators'], name='Undelegators', marker_color='orange')
+        fig2.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegators'], name='Delegators', marker_color='green')
+        fig2.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegators'], name='Undelegators', marker_color='red')
         fig2.update_layout(
             title="Monthly Number of Users",
             barmode='group',
@@ -384,8 +384,8 @@ if not monthly_data.empty:
     # Monthly Number of Transactions
     with col2:
         fig3 = go.Figure()
-        fig3.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegate Txns'], name='Delegate Txns', marker_color='purple')
-        fig3.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegate Txns'], name='Undelegate Txns', marker_color='pink')
+        fig3.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegate Txns'], name='Delegate Txns', marker_color='green')
+        fig3.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegate Txns'], name='Undelegate Txns', marker_color='red')
         fig3.update_layout(
             title="Monthly Number of Transactions",
             barmode='group',
