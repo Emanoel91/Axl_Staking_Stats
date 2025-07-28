@@ -73,16 +73,16 @@ conn = snowflake.connector.connect(
 start_date = st.date_input("Start Date", value=pd.to_datetime("2022-08-01"))
 end_date = st.date_input("End Date", value=pd.to_datetime("2025-06-30"))
 
-# --- Query Functions ---------------------------------------------------------------------------------------
-# --- Row 1: Total Amounts Staked, Unstaked, and Net Staked ---
-
+# --- Query Functions -------------------------------------------------------------------------------------------------------------------------
+# --- Row 1: Share of Staked Tokens -----------
 @st.cache_data
-def load_staking_totals(start_date, end_date):
+def load_share_of_staked_tokens(start_date, end_date):
     query = f"""
         WITH delegate AS (
             SELECT
-                TRUNC(block_timestamp, 'week') AS date,
-                SUM(amount / POW(10, 6)) AS amount_staked
+                TRUNC(block_timestamp,'month') AS monthly, 
+                SUM(amount/POW(10,6)) AS delegate_amount,
+                SUM(SUM(amount/POW(10,6))) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_delegate_amount
             FROM axelar.gov.fact_staking
             WHERE action = 'delegate'
               AND TX_SUCCEEDED = 'TRUE'
@@ -92,49 +92,47 @@ def load_staking_totals(start_date, end_date):
         ),
         undelegate AS (
             SELECT
-                TRUNC(block_timestamp, 'week') AS date,
-                SUM(amount / POW(10, 6)) AS amount_unstaked
+                TRUNC(block_timestamp,'month') AS monthly, 
+                SUM(amount/POW(10,6)) * -1 AS undelegate_amount,
+                SUM(SUM(amount/POW(10,6)) * -1) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_undelegate_amount
             FROM axelar.gov.fact_staking
             WHERE action = 'undelegate'
               AND TX_SUCCEEDED = 'TRUE'
               AND block_timestamp::date >= '{start_date}'
               AND block_timestamp::date <= '{end_date}'
             GROUP BY 1
-        ),
-        final AS (
-            SELECT a.date,
-                   amount_staked,
-                   amount_unstaked,
-                   amount_staked - amount_unstaked AS net
-            FROM delegate a
-            LEFT OUTER JOIN undelegate b
-              ON a.date = b.date
         )
-        SELECT
-            ROUND(SUM(amount_staked), 2) AS total_staked,
-            ROUND(SUM(amount_unstaked), 2) AS total_unstaked,
-            ROUND(SUM(net), 2) AS total_net_staked
-        FROM final
+        SELECT 
+            (cumulative_delegate_amount + cumulative_undelegate_amount) / 1008585017 * 100 AS share_of_staked_tokens
+        FROM delegate a
+        LEFT OUTER JOIN undelegate b
+          ON a.monthly = b.monthly
+        WHERE a.monthly >= '{start_date}'
+        ORDER BY a.monthly DESC
+        LIMIT 1
     """
-    return pd.read_sql(query, conn).iloc[0]
-
-
-# --- Load Data ----------------------------------------------------------------------------------------
-staking_totals = load_staking_totals(start_date, end_date)
-
-# ------------------------------------------------------------------------------------------------------
-
-# --- Row 1: Metrics ---
-staking_totals.index = staking_totals.index.str.lower() 
-
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Amount Staked", f"{staking_totals['total_staked']:,} AXL")
-col2.metric("Total Amount UnStaked", f"{staking_totals['total_unstaked']:,} AXL")
-col3.metric("Total Amount Net Staked", f"{staking_totals['total_net_staked']:,} AXL")
+    df = pd.read_sql(query, conn)
+    if not df.empty:
+        return round(df["SHARE_OF_STAKED_TOKENS"].iloc[0], 2)
+    else:
+        return None
 
 
 
-# --- Reference and Rebuild Info --------------------------------------------------------------------------------------
+# --- Load Data ------------------------------------------------------------------------------------------------------------------------------------
+share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
+
+# ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+# --- Row 1: KPI for Share of Staked Tokens ---
+if share_of_staked_tokens is not None:
+    st.metric("Share of Staked Tokens From Supply", f"{share_of_staked_tokens:.2f}%")
+else:
+    st.warning("No data available for the selected period.")
+
+
+
+# --- Reference and Rebuild Info ---------------------------------------------------------------------------------------------------------------------
 st.markdown(
     """
     <div style="margin-top: 20px; margin-bottom: 20px; font-size: 16px;">
