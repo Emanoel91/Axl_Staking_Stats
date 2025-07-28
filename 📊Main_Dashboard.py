@@ -357,8 +357,8 @@ if not monthly_data.empty:
     fig1.update_layout(
         title="Monthly Delegate and Undelegate Amount + Net [AXL]",
         barmode='group',
-        yaxis=dict(title="Delegate/Undelegate Amount [AXL]", side='left'),
-        yaxis2=dict(title="Net Delegated Amount [AXL]", overlaying='y', side='right'),
+        yaxis=dict(title="$AXL", side='left'),
+        yaxis2=dict(title="$AXL", overlaying='y', side='right'),
         legend=dict(x=0, y=1.1, orientation='h'),
         height=500
     )
