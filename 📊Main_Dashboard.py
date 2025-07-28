@@ -94,15 +94,89 @@ def load_share_of_staked_tokens(start_date, end_date):
     else:
         return None
 
+# --- Row2: Monthly Share Chart ---------------------------------------------------------------------------
+@st.cache_data
+def load_monthly_share_data(start_date, end_date):
+    query = f"""
+        WITH delegate AS (
+            SELECT 
+                TRUNC(block_timestamp,'month') AS monthly, 
+                SUM(amount/POW(10,6)) AS delegate_amount,
+                SUM(SUM(amount/POW(10,6))) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_delegate_amount,
+                COUNT(DISTINCT tx_id) AS delegate_tx,
+                COUNT(DISTINCT DELEGATOR_ADDRESS) AS delegate_user,
+                AVG(amount/POW(10,6)) AS avg_delegate_amount 
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        ),
+        undelegate AS (
+            SELECT 
+                TRUNC(block_timestamp,'month') AS monthly, 
+                SUM(amount/POW(10,6)) * -1 AS undelegate_amount,
+                SUM(SUM(amount/POW(10,6)) * -1) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_undelegate_amount,
+                COUNT(DISTINCT tx_id) * -1 AS undelegate_tx,
+                COUNT(DISTINCT DELEGATOR_ADDRESS) * -1 AS undelegate_user,
+                AVG(amount/POW(10,6)) AS avg_undelegate_amount 
+            FROM axelar.gov.fact_staking
+            WHERE action = 'undelegate'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        )
+        SELECT 
+            a.monthly, 
+            delegate_amount,
+            undelegate_amount,
+            cumulative_delegate_amount,
+            cumulative_undelegate_amount,
+            delegate_tx,
+            undelegate_tx,
+            delegate_user,
+            undelegate_user,
+            1008585017 AS supply,
+            cumulative_delegate_amount + cumulative_undelegate_amount AS net,
+            (cumulative_delegate_amount + cumulative_undelegate_amount) / 1008585017 * 100 AS "Share of Staked Tokens From Supply"
+        FROM delegate a
+        LEFT OUTER JOIN undelegate b ON a.monthly = b.monthly 
+        WHERE a.monthly >= '{start_date}' AND a.monthly <= '{end_date}'
+        ORDER BY 1 ASC
+    """
+    return pd.read_sql(query, conn)
+
 # --- Load Data -----------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
-
+monthly_share_df = load_monthly_share_data(start_date, end_date)
 
 # --- Row 1: KPI ------------------------------------------------------------------------------------------------------------
 if share_of_staked_tokens is not None:
     st.metric("Share of Staked Tokens From Supply", f"{share_of_staked_tokens:.2f}%")
 else:
     st.warning("No data available for the selected period.")
+
+# --- Row 2: Monthly Share of Staked Tokens from Supply Chart ----------------------------------------------------------
+if not monthly_share_df.empty:
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=monthly_share_df['MONTHLY'],
+        y=monthly_share_df['Share of Staked Tokens From Supply'],
+        mode='markers+lines',
+        marker=dict(size=8, color='blue'),
+        line=dict(color='blue', width=2)
+    ))
+    fig.update_layout(
+        title="Monthly Share of Staked Tokens from Supply",
+        xaxis_title="Month",
+        yaxis_title="Share (%)",
+        hovermode='x unified',
+        template='plotly_white',
+        height=500
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("No monthly data available for the selected period.")
 
 # --- Reference and Rebuild Info --------------------------------------------------------------------------------------
 st.markdown(
