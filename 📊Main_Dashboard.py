@@ -254,15 +254,13 @@ def load_monthly_delegation_data(start_date, end_date):
     if not df.empty:
         df['monthly'] = pd.to_datetime(df['MONTHLY'])
     return df
-    monthly_data = load_monthly_delegation_data(start_date, end_date)
-if not monthly_data.empty:
-
+    
 # --- Load Data -----------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
 monthly_share_df = load_monthly_share_data(start_date, end_date)
 delegate_kpis_df = load_delegate_kpis(start_date, end_date)
 current_net_staked = load_current_net_staked(start_date, end_date)
-
+monthly_data = load_monthly_delegation_data(start_date, end_date)
 
 # --- Row 1: KPI ------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -348,7 +346,8 @@ if current_net_staked is not None:
     )
 else:
     st.warning("No data available for Current Net Staked in the selected period.")
-
+    
+if not monthly_data.empty:
 # --- Row 5: Combined Delegate & Undelegate + Net --------------------------
     fig1 = go.Figure()
     fig1.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegate Amount'], name='Delegate Amount', marker_color='green', yaxis='y1')
