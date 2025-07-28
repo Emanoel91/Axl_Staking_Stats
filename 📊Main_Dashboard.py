@@ -16,7 +16,7 @@ st.markdown(
     """
     <div style="display: flex; align-items: center; gap: 15px;">
         <img src="https://axelarscan.io/logos/chains/axelarnet.svg" alt="Axelar Logo" style="width:60px; height:60px;">
-        <h1 style="margin: 0;">Axelar Staking</h1>
+        <h1 style="margin: 0;">Axl Staking Stats</h1>
     </div>
     """,
     unsafe_allow_html=True
