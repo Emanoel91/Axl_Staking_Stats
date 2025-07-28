@@ -107,7 +107,7 @@ def load_share_of_staked_tokens(start_date, end_date):
         FROM delegate a
         LEFT OUTER JOIN undelegate b
           ON a.monthly = b.monthly
-        WHERE a.monthly >= '{start_date}'
+        # WHERE a.monthly >= '{start_date}'
         ORDER BY a.monthly DESC
         LIMIT 1
     """
