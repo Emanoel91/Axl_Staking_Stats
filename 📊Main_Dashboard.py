@@ -202,11 +202,66 @@ def load_current_net_staked(start_date, end_date):
     else:
         return None
 
+# --- Row5: Monthly Delegation Data ----------------------------------------------------------------------
+@st.cache_data
+def load_monthly_delegation_data(start_date, end_date):
+    query = f"""
+        WITH delegate AS (
+            SELECT 
+                TRUNC(block_timestamp,'month') AS monthly, 
+                SUM(amount/POW(10,6)) AS delegate_amount,
+                SUM(SUM(amount/POW(10,6))) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_delegate_amount,
+                COUNT(DISTINCT tx_id) AS delegate_tx,
+                COUNT(DISTINCT DELEGATOR_ADDRESS) AS delegate_user,
+                AVG(amount/POW(10,6)) AS avg_delegate_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        ),
+        undelegate AS (
+            SELECT 
+                TRUNC(block_timestamp,'month') AS monthly, 
+                SUM(amount/POW(10,6)) * -1 AS undelegate_amount,
+                SUM(SUM(amount/POW(10,6)) * -1) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_undelegate_amount,
+                COUNT(DISTINCT tx_id) * -1 AS undelegate_tx,
+                COUNT(DISTINCT DELEGATOR_ADDRESS) * -1 AS undelegate_user,
+                AVG(amount/POW(10,6)) AS avg_undelegate_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'undelegate'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        )
+        SELECT 
+            a.monthly,
+            ROUND(delegate_amount,1) AS "Delegate Amount",
+            ROUND(undelegate_amount,1) AS "Undelegate Amount",
+            cumulative_delegate_amount,
+            cumulative_undelegate_amount,
+            delegate_tx AS "Delegate Txns",
+            undelegate_tx AS "Undelegate Txns",
+            delegate_user AS "Delegators",
+            undelegate_user AS "Undelegators",
+            ROUND((cumulative_delegate_amount + cumulative_undelegate_amount),1) AS "Net Delegated Amount"
+        FROM delegate a 
+        LEFT JOIN undelegate b ON a.monthly = b.monthly 
+        WHERE a.monthly >= '{start_date}'
+        ORDER BY a.monthly ASC
+    """
+    df = pd.read_sql(query, conn)
+    if not df.empty:
+        df['monthly'] = pd.to_datetime(df['MONTHLY'])
+    return df
+
 # --- Load Data -----------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
 monthly_share_df = load_monthly_share_data(start_date, end_date)
 delegate_kpis_df = load_delegate_kpis(start_date, end_date)
 current_net_staked = load_current_net_staked(start_date, end_date)
+monthly_data = load_monthly_delegation_data(start_date, end_date)
+if not monthly_data.empty:
 
 # --- Row 1: KPI ------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -292,6 +347,55 @@ if current_net_staked is not None:
     )
 else:
     st.warning("No data available for Current Net Staked in the selected period.")
+
+# --- Row 5: Combined Delegate & Undelegate + Net --------------------------
+    fig1 = go.Figure()
+    fig1.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegate Amount'], name='Delegate Amount', marker_color='green', yaxis='y1')
+    fig1.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegate Amount'], name='Undelegate Amount', marker_color='red', yaxis='y1')
+    fig1.add_trace(go.Scatter(x=monthly_data['monthly'], y=monthly_data['Net Delegated Amount'],
+                              name='Net Delegated Amount', mode='lines+markers', line=dict(color='blue', width=2), yaxis='y2'))
+    fig1.update_layout(
+        title="Monthly Delegate and Undelegate Amount + Net [AXL]",
+        barmode='group',
+        yaxis=dict(title="Delegate/Undelegate Amount [AXL]", side='left'),
+        yaxis2=dict(title="Net Delegated Amount [AXL]", overlaying='y', side='right'),
+        legend=dict(x=0, y=1.1, orientation='h'),
+        height=500
+    )
+    st.plotly_chart(fig1, use_container_width=True)
+
+    # --- Row 6: Two Side-by-Side Charts ---------------
+    col1, col2 = st.columns(2)
+
+    # Monthly Number of Users
+    with col1:
+        fig2 = go.Figure()
+        fig2.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegators'], name='Delegators', marker_color='blue')
+        fig2.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegators'], name='Undelegators', marker_color='orange')
+        fig2.update_layout(
+            title="Monthly Number of Users",
+            barmode='group',
+            yaxis_title="Number of Users",
+            legend=dict(x=0, y=1.1, orientation='h'),
+            height=400
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+
+    # Monthly Number of Transactions
+    with col2:
+        fig3 = go.Figure()
+        fig3.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegate Txns'], name='Delegate Txns', marker_color='purple')
+        fig3.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegate Txns'], name='Undelegate Txns', marker_color='pink')
+        fig3.update_layout(
+            title="Monthly Number of Transactions",
+            barmode='group',
+            yaxis_title="Number of Transactions",
+            legend=dict(x=0, y=1.1, orientation='h'),
+            height=400
+        )
+        st.plotly_chart(fig3, use_container_width=True)
+else:
+    st.warning("No data available for Monthly Delegation details in the selected period.")
 
 # --- Reference and Rebuild Info --------------------------------------------------------------------------------------
 st.markdown(
