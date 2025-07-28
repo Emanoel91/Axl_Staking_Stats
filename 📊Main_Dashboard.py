@@ -351,7 +351,7 @@ if not monthly_data.empty:
 # --- Row 5: Combined Delegate & Undelegate + Net --------------------------
     fig1 = go.Figure()
     fig1.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegate Amount'], name='Delegate Amount', marker_color='blue', yaxis='y1')
-    fig1.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegate Amount'], name='Undelegate Amount', marker_color='pink', yaxis='y1')
+    fig1.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegate Amount'], name='Undelegate Amount', marker_color='orange', yaxis='y1')
     fig1.add_trace(go.Scatter(x=monthly_data['monthly'], y=monthly_data['Net Delegated Amount'],
                               name='Net Delegated Amount', mode='lines+markers', line=dict(color='yellow', width=2), yaxis='y2'))
     fig1.update_layout(
@@ -371,7 +371,7 @@ if not monthly_data.empty:
     with col1:
         fig2 = go.Figure()
         fig2.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegators'], name='Delegators', marker_color='blue')
-        fig2.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegators'], name='Undelegators', marker_color='pink')
+        fig2.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegators'], name='Undelegators', marker_color='orange')
         fig2.update_layout(
             title="Monthly Number of Users",
             barmode='group',
@@ -385,7 +385,7 @@ if not monthly_data.empty:
     with col2:
         fig3 = go.Figure()
         fig3.add_bar(x=monthly_data['monthly'], y=monthly_data['Delegate Txns'], name='Delegate Txns', marker_color='blue')
-        fig3.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegate Txns'], name='Undelegate Txns', marker_color='pink')
+        fig3.add_bar(x=monthly_data['monthly'], y=monthly_data['Undelegate Txns'], name='Undelegate Txns', marker_color='orange')
         fig3.update_layout(
             title="Monthly Number of Transactions",
             barmode='group',
