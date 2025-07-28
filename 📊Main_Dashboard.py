@@ -202,7 +202,7 @@ def load_current_net_staked(start_date, end_date):
     else:
         return None
 
-# --- Row5: Monthly Delegation Data ----------------------------------------------------------------------
+# --- Row5: Monthly Delegation Data --------------
 @st.cache_data
 def load_monthly_delegation_data(start_date, end_date):
     query = f"""
@@ -254,14 +254,15 @@ def load_monthly_delegation_data(start_date, end_date):
     if not df.empty:
         df['monthly'] = pd.to_datetime(df['MONTHLY'])
     return df
+    monthly_data = load_monthly_delegation_data(start_date, end_date)
+if not monthly_data.empty:
 
 # --- Load Data -----------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
 monthly_share_df = load_monthly_share_data(start_date, end_date)
 delegate_kpis_df = load_delegate_kpis(start_date, end_date)
 current_net_staked = load_current_net_staked(start_date, end_date)
-monthly_data = load_monthly_delegation_data(start_date, end_date)
-if not monthly_data.empty:
+
 
 # --- Row 1: KPI ------------------------------------------------------------------------------------------------------------
 st.markdown(
