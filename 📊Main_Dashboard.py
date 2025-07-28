@@ -39,16 +39,16 @@ st.markdown(
 
 
 # --- Info Box --------------------------------------------------------------------------------------------------------------
-st.markdown(
-    """
-    <div style="background-color: #c0ced9; padding: 15px; border-radius: 10px; border: 1px solid #c0ced9;">
-        The AXL token is the native cryptocurrency of the Axelar network, a decentralized blockchain interoperability platform designed to 
-connect multiple blockchains, enabling seamless cross-chain communication and asset transfers. Staking AXL tokens involves locking 
-them in the Axelar network to support its operations and security, in return for earning rewards.
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+#st.markdown(
+#    """
+#    <div style="background-color: #c0ced9; padding: 15px; border-radius: 10px; border: 1px solid #c0ced9;">
+#        The AXL token is the native cryptocurrency of the Axelar network, a decentralized blockchain interoperability platform designed to 
+#connect multiple blockchains, enabling seamless cross-chain communication and asset transfers. Staking AXL tokens involves locking 
+#them in the Axelar network to support its operations and security, in return for earning rewards.
+#    </div>
+#    """,
+#    unsafe_allow_html=True
+#)
 
 st.info(
     "📊Charts initially display data for a default time range. Select a custom range to view results for your desired period."
