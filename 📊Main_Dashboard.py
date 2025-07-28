@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import snowflake.connector
-import plotly.express as px
 import plotly.graph_objects as go
 
 # --- Page Config: Tab Title & Icon -------------------------------------------------------------------------------------
@@ -23,7 +22,6 @@ st.markdown(
 )
 
 # --- Page Builder ----------------------------------------------------------------------------------------------------------
-
 st.markdown(
     """
     <div style="margin-top: 20px; margin-bottom: 20px; font-size: 16px;">
@@ -31,33 +29,13 @@ st.markdown(
             <img src="https://pbs.twimg.com/profile_images/1841479747332608000/bindDGZQ_400x400.jpg" alt="Eman Raz" style="width:25px; height:25px; border-radius: 50%;">
             <span>Built by: <a href="https://x.com/0xeman_raz" target="_blank">Eman Raz</a></span>
         </div>
-        
     </div>
     """,
     unsafe_allow_html=True
 )
 
-
-# --- Info Box --------------------------------------------------------------------------------------------------------------
-#st.markdown(
-#    """
-#    <div style="background-color: #c0ced9; padding: 15px; border-radius: 10px; border: 1px solid #c0ced9;">
-#        The AXL token is the native cryptocurrency of the Axelar network, a decentralized blockchain interoperability platform designed to 
-#connect multiple blockchains, enabling seamless cross-chain communication and asset transfers. Staking AXL tokens involves locking 
-#them in the Axelar network to support its operations and security, in return for earning rewards.
-#    </div>
-#    """,
-#    unsafe_allow_html=True
-#)
-
-st.info(
-    "📊Charts initially display data for a default time range. Select a custom range to view results for your desired period."
-
-)
-
-st.info(
-    "⏳On-chain data retrieval may take a few moments. Please wait while the results load."
-)
+st.info("📊Charts initially display data for a default time range. Select a custom range to view results for your desired period.")
+st.info("⏳On-chain data retrieval may take a few moments. Please wait while the results load.")
 
 # --- Snowflake Connection --------------------------------------------------------------------------------------------------
 conn = snowflake.connector.connect(
@@ -75,48 +53,6 @@ end_date = st.date_input("End Date", value=pd.to_datetime("2025-06-30"))
 
 # --- Query Functions -------------------------------------------------------------------------------------------------------------------------
 # --- Row 1: Share of Staked Tokens -----------
-@st.cache_data
-def load_share_of_staked_tokens(start_date, end_date):
-    query = f"""
-        WITH delegate AS (
-            SELECT
-                TRUNC(block_timestamp,'month') AS monthly, 
-                SUM(amount/POW(10,6)) AS delegate_amount,
-                SUM(SUM(amount/POW(10,6))) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_delegate_amount
-            FROM axelar.gov.fact_staking
-            WHERE action = 'delegate'
-              AND TX_SUCCEEDED = 'TRUE'
-              AND block_timestamp::date >= '{start_date}'
-              AND block_timestamp::date <= '{end_date}'
-            GROUP BY 1
-        ),
-        undelegate AS (
-            SELECT
-                TRUNC(block_timestamp,'month') AS monthly, 
-                SUM(amount/POW(10,6)) * -1 AS undelegate_amount,
-                SUM(SUM(amount/POW(10,6)) * -1) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_undelegate_amount
-            FROM axelar.gov.fact_staking
-            WHERE action = 'undelegate'
-              AND TX_SUCCEEDED = 'TRUE'
-              AND block_timestamp::date >= '{start_date}'
-              AND block_timestamp::date <= '{end_date}'
-            GROUP BY 1
-        )
-        SELECT 
-            (cumulative_delegate_amount + cumulative_undelegate_amount) / 1008585017 * 100 AS share_of_staked_tokens
-        FROM delegate a
-        LEFT OUTER JOIN undelegate b
-          ON a.monthly = b.monthly
-        ORDER BY a.monthly DESC
-        LIMIT 1
-    """
-    df = pd.read_sql(query, conn)
-    if not df.empty:
-        return round(df["SHARE_OF_STAKED_TOKENS"].iloc[0], 2)
-    else:
-        return None
-
-# --- Row2: Monthly Share of Staked Tokens from Supply -----------------------------------------------------------
 @st.cache_data
 def load_share_of_staked_tokens(start_date, end_date):
     query = f"""
@@ -158,12 +94,45 @@ def load_share_of_staked_tokens(start_date, end_date):
     else:
         return None
 
+# --- Row2: Monthly Share of Staked Tokens from Supply -----------------------------------------------------------
+@st.cache_data
+def load_monthly_share_data(start_date, end_date):
+    query = f"""
+        WITH delegate AS (
+            SELECT TRUNC(block_timestamp,'month') AS monthly, 
+                   SUM(amount/POW(10,6)) AS delegate_amount,
+                   SUM(SUM(amount/POW(10,6))) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_delegate_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+              AND TX_SUCCEEDED = 'TRUE'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        ),
+        undelegate AS (
+            SELECT TRUNC(block_timestamp,'month') AS monthly, 
+                   SUM(amount/POW(10,6)) * -1 AS undelegate_amount,
+                   SUM(SUM(amount/POW(10,6)) * -1) OVER (ORDER BY TRUNC(block_timestamp,'month') ASC) AS cumulative_undelegate_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'undelegate'
+              AND TX_SUCCEEDED = 'TRUE'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        )
+        SELECT a.monthly, 
+               1181742149 AS supply,
+               (cumulative_delegate_amount + cumulative_undelegate_amount) / 1181742149 * 100 AS share_of_staked_tokens
+        FROM delegate a
+        LEFT JOIN undelegate b ON a.monthly = b.monthly 
+        WHERE a.monthly >= '{start_date}'
+        ORDER BY a.monthly ASC
+    """
+    return pd.read_sql(query, conn)
 
 # --- Load Data ------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
 monthly_data = load_monthly_share_data(start_date, end_date)
-
-# ---------------------------------------------------------------------------------------------------------------------------------------------------
 
 # --- Row 1: KPI for Share of Staked Tokens ---
 if share_of_staked_tokens is not None:
@@ -253,10 +222,7 @@ st.markdown(
             <img src="https://cdn-icons-png.flaticon.com/512/5968/5968958.png" alt="X" style="width:20px; height:20px;">
             <a href="https://x.com/axelar" target="_blank">https://x.com/axelar</a>
         </div>
-        
     </div>
     """,
     unsafe_allow_html=True
 )
-
-
