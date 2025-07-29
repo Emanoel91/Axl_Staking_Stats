@@ -798,7 +798,7 @@ if not new_delegators_df.empty:
             <div style="text-align: center; padding: 30px; background-color: #f8f9fa; border-radius: 15px; margin: 10px 0;">
                 <h2 style="font-size: 32px; margin-bottom: 10px;">Avg Number of Daily Delegators</h2>
                 <p style="font-size: 48px; font-weight: bold; color: #1565c0;">{avg_daily:,}</p>
-                <p style="font-size: 16px; color: #6c757d;">Average new delegators per day since Jan 2025</p>
+                <p style="font-size: 16px; color: #6c757d;">since Jan 2025</p>
             </div>
             """,
             unsafe_allow_html=True
