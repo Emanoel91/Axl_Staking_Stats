@@ -1122,17 +1122,18 @@ with col1:
             title="Top 10 Validators Based on Redelegate Amount",
             xaxis=dict(title="Validator"),
             yaxis=dict(
-                title="Redelegate Amount",
+                title="$AXL",
                 side="left",
                 showgrid=False
             ),
             yaxis2=dict(
-                title="Avg Amount",
+                title="$AXL",
                 side="right",
                 overlaying="y"
             ),
             height=500,
-            legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"),
+            # -- legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"),
+            legend=dict(x=0, y=1.1, orientation="h"),
             barmode="group"
         )
 
