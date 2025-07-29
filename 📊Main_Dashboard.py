@@ -50,7 +50,7 @@ conn = snowflake.connector.connect(
 
 # --- Date Inputs ---------------------------------------------------------------------------------------------------
 start_date = st.date_input("Start Date", value=pd.to_datetime("2022-08-01"))
-end_date = st.date_input("End Date", value=pd.to_datetime("2025-06-30"))
+end_date = st.date_input("End Date", value=pd.to_datetime("2025-07-30"))
 
 # --- Query Functions -----------------------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
