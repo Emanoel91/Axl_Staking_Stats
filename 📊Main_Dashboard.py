@@ -51,7 +51,7 @@ conn = snowflake.connector.connect(
 start_date = st.date_input("Start Date", value=pd.to_datetime("2022-08-01"))
 end_date = st.date_input("End Date", value=pd.to_datetime("2025-06-30"))
 
-# --- Query Functions -------------------------------------------------------------------------------------------------------------------------------------
+# --- Query Functions -----------------------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_share_of_staked_tokens(start_date, end_date):
     query = f"""
@@ -347,6 +347,53 @@ def load_current_number_of_delegators(start_date, end_date):
     else:
         return None
 
+# --- Row9: Top Delegators -----------------------------------------------------------------------------
+@st.cache_data
+def load_top_delegators(start_date, end_date):
+    query = f"""
+        WITH delegate AS (
+            SELECT delegator_address,
+                   ROUND(SUM(amount/POW(10,6)),1) AS delegate_amount,
+                   COUNT(DISTINCT tx_id) AS delegate_txns,
+                   ROUND(AVG(amount/POW(10,6)),1) AS avg_delegate_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        ),
+        undelegate AS (
+            SELECT delegator_address,
+                   ROUND(SUM(amount/POW(10,6)),1) AS undelegate_amount,
+                   COUNT(DISTINCT tx_id) AS undelegate_txns,
+                   ROUND(AVG(amount/POW(10,6)),1) AS avg_undelegate_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'undelegate'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        )
+        SELECT a.delegator_address AS "Delegator Address",
+               delegate_amount AS "Delegate Amount",
+               IFNULL(undelegate_amount,0) AS "Undelegate Amount",
+               delegate_amount - IFNULL(undelegate_amount,0) AS "Net Delegated",
+               delegate_txns AS "Delegate Txns",
+               IFNULL(undelegate_txns,0) AS "Undelegate Txns",
+               avg_delegate_amount AS "Avg Delegate Txns",
+               IFNULL(avg_undelegate_amount,0) AS "Avg Undelegate Txns"
+        FROM delegate a
+        LEFT JOIN undelegate b
+          ON a.delegator_address = b.delegator_address
+        ORDER BY 4 DESC
+        LIMIT 1000
+    """
+    df = pd.read_sql(query, conn)
+    if not df.empty:
+        df.index = df.index + 1  
+        return df
+    else:
+        return pd.DataFrame()
+
    
 # --- Load Data ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
@@ -356,6 +403,7 @@ current_net_staked = load_current_net_staked(start_date, end_date)
 monthly_data = load_monthly_delegation_data(start_date, end_date)
 action_summary2 = load_action_summary_by_type(start_date, end_date)
 current_delegators = load_current_number_of_delegators(start_date, end_date)
+top_delegators_df = load_top_delegators(start_date, end_date)
 
 # --- Row 1: KPI ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -576,6 +624,25 @@ if current_delegators is not None:
     )
 else:
     st.warning("No data available for Current Number of Delegators in the selected period.")
+
+# --- Row9: Display Table ------------------------------
+if not top_delegators_df.empty:
+    def highlight_top3(row):
+        color = ''
+        if row.name == 1:   # -- rank1-gold
+            color = 'background-color: gold;'
+        elif row.name == 2: # -- rank2 silver
+            color = 'background-color: silver;'
+        elif row.name == 3: # -- rank3-bronze
+            color = 'background-color: #cd7f32;'
+        return [color] * len(row)
+
+    styled_table = top_delegators_df.style.apply(highlight_top3, axis=1)
+
+    st.markdown("### Overview of top 1000 Addresses (The results are for the default time period.)")
+    st.dataframe(styled_table, use_container_width=True)
+else:
+    st.warning("No data available for top delegators in the selected period.")
 
 
 # --- Reference and Rebuild Info --------------------------------------------------------------------------------------
