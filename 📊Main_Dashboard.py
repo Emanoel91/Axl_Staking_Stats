@@ -280,6 +280,72 @@ def load_action_summary_by_type(start_date, end_date):
         GROUP BY 1
     """
     return pd.read_sql(query, conn)
+# -- Row8 -----------------------------------------------------------
+@st.cache_data
+def load_current_number_of_delegators(start_date, end_date):
+    query = f"""
+        WITH date_start AS (
+            WITH dates AS (
+                SELECT CAST('2022-02-10' AS DATE) AS start_date 
+                UNION ALL 
+                SELECT DATEADD(day, 1, start_date)
+                FROM dates
+                WHERE start_date < CURRENT_DATE()
+            )
+            SELECT DATE_TRUNC('day', start_date) AS start_date
+            FROM dates
+        ),
+        axl_stakers_balance_change AS (
+            SELECT *
+            FROM (
+                SELECT DATE_TRUNC('day', block_timestamp) AS date,
+                       DELEGATOR_ADDRESS AS user,
+                       SUM(amount)/1e6 AS balance_change
+                FROM (
+                    SELECT block_timestamp, DELEGATOR_ADDRESS, -1 * amount AS amount, tx_id
+                    FROM axelar.gov.fact_staking
+                    WHERE action = 'undelegate' AND tx_succeeded = TRUE
+                    UNION ALL
+                    SELECT block_timestamp, DELEGATOR_ADDRESS, amount, tx_id
+                    FROM axelar.gov.fact_staking
+                    WHERE action = 'delegate' AND tx_succeeded = TRUE
+                )
+                GROUP BY 1,2
+            )
+        ),
+        axl_stakers_historic_holders AS (
+            SELECT user
+            FROM axl_stakers_balance_change
+            GROUP BY 1
+        ),
+        user_dates AS (
+            SELECT start_date, user
+            FROM date_start, axl_stakers_historic_holders
+        ),
+        users_balance AS (
+            SELECT start_date AS "Date", user,
+                   LAG(balance_raw) IGNORE NULLS OVER (PARTITION BY user ORDER BY start_date) AS balance_lag,
+                   IFNULL(balance_raw, balance_lag) AS balance
+            FROM (
+                SELECT start_date, a.user, balance_change,
+                       SUM(balance_change) OVER (PARTITION BY a.user ORDER BY start_date) AS balance_raw
+                FROM user_dates a
+                LEFT JOIN axl_stakers_balance_change b
+                ON date = start_date AND a.user = b.user
+            )
+        )
+        SELECT "Date", COUNT(DISTINCT user) AS "Users"
+        FROM users_balance
+        WHERE balance >= 0.001 AND balance IS NOT NULL
+        GROUP BY 1
+        ORDER BY 1 DESC
+        LIMIT 1
+    """
+    df = pd.read_sql(query, conn)
+    if not df.empty:
+        return int(df["Users"].iloc[0])
+    else:
+        return None
 
    
 # --- Load Data -----------------------------------------------------------------------------------------------------------
@@ -289,6 +355,7 @@ delegate_kpis_df = load_delegate_kpis(start_date, end_date)
 current_net_staked = load_current_net_staked(start_date, end_date)
 monthly_data = load_monthly_delegation_data(start_date, end_date)
 action_summary2 = load_action_summary_by_type(start_date, end_date)
+current_delegators = load_current_number_of_delegators(start_date, end_date)
 
 # --- Row 1: KPI ------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -485,6 +552,21 @@ if not action_summary2.empty:
 
 else:
     st.warning("No data available for the selected period.")
+
+# --- Row8: Single KPI -------------------------------------------------------------------------------------------
+if current_delegators is not None:
+    st.markdown(
+        f"""
+        <div style="text-align: center; padding: 30px; background-color: #f8f9fa; border-radius: 15px; margin: 20px 0;">
+            <h3 style="font-size: 28px; margin-bottom: 10px;">Current Number of Delegators</h3>
+            <p style="font-size: 40px; font-weight: bold; color: #2e7d32;">{current_delegators:,}</p>
+            <p style="font-size: 14px; color: #555;">Number of Users with AXL Currently Staked</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    st.warning("No data available for Current Number of Delegators in the selected period.")
 
 
 # --- Reference and Rebuild Info --------------------------------------------------------------------------------------
