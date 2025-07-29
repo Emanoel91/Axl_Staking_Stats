@@ -987,7 +987,7 @@ with col1:
             color="Type",
             groupnorm="fraction",  # normalized
             title="Daily Share of Delegated Amount (60D)",
-            labels={"Delegated Amount": "Share of Delegated Amount"}
+            labels={"Delegated Amount": "%share"}
         )
         fig1.update_layout(
             yaxis=dict(tickformat=".0%"),
