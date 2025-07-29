@@ -399,7 +399,7 @@ def load_top_delegators(start_date, end_date):
 def load_users_breakdown(start_date, end_date):
     query = f"""
         WITH final AS (
-            SELECT 'Delegate' AS type,
+            SELECT 'Delegate' AS "Type",
                    DELEGATOR_ADDRESS,
                    SUM(amount/POW(10,6)) AS amount,
                    COUNT(DISTINCT tx_id) AS txns,
@@ -411,7 +411,7 @@ def load_users_breakdown(start_date, end_date):
               AND block_timestamp::date <= '{end_date}'
             GROUP BY 1,2
             UNION
-            SELECT 'Undelegate' AS type,
+            SELECT 'Undelegate' AS "Type",
                    DELEGATOR_ADDRESS,
                    SUM(amount/POW(10,6)) AS amount,
                    COUNT(DISTINCT tx_id) AS txns,
@@ -423,8 +423,8 @@ def load_users_breakdown(start_date, end_date):
               AND block_timestamp::date <= '{end_date}'
             GROUP BY 1,2
         )
-        SELECT COUNT(DISTINCT DELEGATOR_ADDRESS) AS users_count,
-               type,
+        SELECT COUNT(DISTINCT DELEGATOR_ADDRESS) AS "Users Count",
+               "Type",
                CASE
                    WHEN amount <= 10 THEN '<= 10 Axl'
                    WHEN amount <= 100 THEN '10-100 Axl'
@@ -704,7 +704,7 @@ if not users_breakdown_df.empty:
         fig1 = go.Figure(data=[
             go.Pie(
                 labels=users_breakdown_df["Category"],
-                values=users_breakdown_df["users_count"],
+                values=users_breakdown_df["Users Count"],
                 hole=0.4,
                 textinfo="label+percent",
                 hovertemplate="%{label}: %{value} Users"
@@ -720,13 +720,13 @@ if not users_breakdown_df.empty:
     # --- Chart 2: Breakdown of Users (Clustered Bar) ----------------------------------------------------------------
     with col2:
         fig2 = go.Figure()
-        for t in users_breakdown_df["type"].unique():
-            df_type = users_breakdown_df[users_breakdown_df["type"] == t]
+        for t in users_breakdown_df["Type"].unique():
+            df_type = users_breakdown_df[users_breakdown_df["Type"] == t]
             fig2.add_bar(
                 x=df_type["Category"],
-                y=df_type["users_count"],
+                y=df_type["Users Count"],
                 name=t,
-                text=df_type["users_count"],
+                text=df_type["Users Count"],
                 textposition="outside"
             )
         fig2.update_layout(
