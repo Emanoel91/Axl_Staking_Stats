@@ -539,6 +539,31 @@ def load_share_amount():
     """
     return pd.read_sql(query, conn)
 
+# --- Row 14,15 --------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_monthly_new_validators(start_date, end_date):
+    query = f"""
+        WITH validator AS (
+            SELECT MIN(block_timestamp) AS date,
+                   validator_address,
+                   SUM(amount/POW(10,6)) AS delegate_amount,
+                   COUNT(DISTINCT tx_id) AS delegate_tx,
+                   COUNT(DISTINCT DELEGATOR_ADDRESS) AS delegate_user,
+                   AVG(amount/POW(10,6)) AS avg_delegate_amount 
+            FROM axelar.gov.fact_staking
+            GROUP BY 2
+        )
+        SELECT TRUNC(date,'month') AS "Month",
+               COUNT(DISTINCT validator_address) AS "New Validators",
+               SUM(COUNT(DISTINCT validator_address)) OVER (ORDER BY TRUNC(date,'month') ASC) AS "Cumulative New Validators",
+               75 AS "Active Validators"
+        FROM validator
+        WHERE date >= '{start_date}'
+          AND date <= '{end_date}'
+        GROUP BY 1
+        ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
    
 # --- Load Data ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
@@ -554,6 +579,7 @@ new_delegators_df = load_new_delegators()
 monthly_new_delegators = load_monthly_new_delegators(start_date, end_date)
 daily_share = load_daily_share_delegated_amount()
 share_amount = load_share_amount()
+monthly_validators = load_monthly_new_validators(start_date, end_date)
 
 # --- Row 1: KPI ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -966,6 +992,68 @@ with col2:
         st.plotly_chart(fig2, use_container_width=True)
     else:
         st.warning("No data available for Share of Amount (60D).")
+
+# --- Row14: KPI for Active Validators ----------------------------------------------------------------------------------
+active_validators_value = monthly_validators["Active Validators"].iloc[-1] if not monthly_validators.empty else None
+
+if active_validators_value is not None:
+    st.markdown(
+        f"""
+        <div style="text-align: center; padding: 40px; background-color: #f8f9fa; border-radius: 15px; margin: 20px 0;">
+            <h2 style="font-size: 32px; margin-bottom: 10px;">Active Validators</h2>
+            <p style="font-size: 48px; font-weight: bold; color: #1565c0;">{active_validators_value:,}</p>
+            <p style="font-size: 16px; color: #6c757d;">Last Stat</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    st.warning("No data available for Active Validators in the selected period.")
+
+# --- Row15: Chart for Monthly New Validators ---------------------------------------------------------------------------
+if not monthly_validators.empty:
+    fig = go.Figure()
+
+    # Bar: New Validators
+    fig.add_trace(go.Bar(
+        x=monthly_validators["Month"],
+        y=monthly_validators["New Validators"],
+        name="New Validators",
+        yaxis="y2",
+        marker_color="#42a5f5"
+    ))
+
+    # Line: Cumulative New Validators
+    fig.add_trace(go.Scatter(
+        x=monthly_validators["Month"],
+        y=monthly_validators["Cumulative New Validators"],
+        name="Cumulative New Validators",
+        mode="lines+markers",
+        line=dict(color="#ef5350", width=2),
+        yaxis="y1"
+    ))
+
+    fig.update_layout(
+        title="Monthly New Validators",
+        xaxis=dict(title="Month"),
+        yaxis=dict(
+            title="Cumulative New Validators",
+            side="left",
+            showgrid=False
+        ),
+        yaxis2=dict(
+            title="New Validators",
+            side="right",
+            overlaying="y"
+        ),
+        height=500,
+        legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"),
+        barmode="group"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("No data available for Monthly New Validators in the selected period.")
 
 # --- Reference and Rebuild Info ---------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
