@@ -439,6 +439,31 @@ def load_users_breakdown(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
+# --- Row11: New Delegators KPIs ---------------------------
+@st.cache_data
+def load_new_delegators():
+    query = """
+        WITH new AS (
+            SELECT MIN(block_timestamp) AS daily,
+                   delegator_address
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+            GROUP BY 2
+        ),
+        final AS (
+            SELECT TRUNC(daily,'day') AS day,
+                   COUNT(DISTINCT delegator_address) AS new_staker,
+                   SUM(COUNT(DISTINCT delegator_address)) OVER (ORDER BY TRUNC(daily,'day') ASC) AS cumulative_new_staker
+            FROM new
+            GROUP BY 1
+        )
+        SELECT SUM(new_staker) AS "Total Number of New Delegators",
+               ROUND(AVG(new_staker)) AS "Avg Number of Daily Delegators"
+        FROM final
+        WHERE day >= '2025-01-01'
+    """
+    return pd.read_sql(query, conn)
+
    
 # --- Load Data ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
@@ -450,6 +475,7 @@ action_summary2 = load_action_summary_by_type(start_date, end_date)
 current_delegators = load_current_number_of_delegators(start_date, end_date)
 top_delegators_df = load_top_delegators(start_date, end_date)
 users_breakdown_df = load_users_breakdown(start_date, end_date)
+new_delegators_df = load_new_delegators()
 
 # --- Row 1: KPI ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -746,6 +772,39 @@ if not users_breakdown_df.empty:
         st.plotly_chart(fig2, use_container_width=True)
 else:
     st.warning("No data available for users breakdown in the selected period.")
+
+# --- Row11: KPIs -------------------------------------------------------------------------------------------------------
+if not new_delegators_df.empty:
+    total_new = int(new_delegators_df["Total Number of New Delegators"].iloc[0])
+    avg_daily = int(new_delegators_df["Avg Number of Daily Delegators"].iloc[0])
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown(
+            f"""
+            <div style="text-align: center; padding: 30px; background-color: #f8f9fa; border-radius: 15px; margin: 10px 0;">
+                <h2 style="font-size: 32px; margin-bottom: 10px;">Total Number of New Delegators</h2>
+                <p style="font-size: 48px; font-weight: bold; color: #2e7d32;">{total_new:,}</p>
+                <p style="font-size: 16px; color: #6c757d;">Since January 2025</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col2:
+        st.markdown(
+            f"""
+            <div style="text-align: center; padding: 30px; background-color: #f8f9fa; border-radius: 15px; margin: 10px 0;">
+                <h2 style="font-size: 32px; margin-bottom: 10px;">Avg Number of Daily Delegators</h2>
+                <p style="font-size: 48px; font-weight: bold; color: #1565c0;">{avg_daily:,}</p>
+                <p style="font-size: 16px; color: #6c757d;">Average new delegators per day since Jan 2025</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+else:
+    st.warning("No data available for new delegators.")
 
 
 
