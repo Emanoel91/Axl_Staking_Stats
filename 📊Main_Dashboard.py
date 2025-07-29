@@ -591,6 +591,69 @@ def get_redelegate_data():
     limit 10
     """
     return pd.read_sql(query, conn)
+
+# --- Row 17 --------------------------
+def get_net_delegated_per_validator():
+    query = """
+    with delegate as (
+        select validator_address, 
+               tx_id,
+               amount/pow(10,6) as delegate_amt,
+               delegator_address
+        from axelar.gov.fact_staking
+        where action = 'delegate'
+          and TX_SUCCEEDED = 'TRUE'
+        UNION
+        select validator_address, 
+               tx_id,
+               amount/pow(10,6) as delegate_amt,
+               delegator_address
+        from axelar.gov.fact_staking
+        where action = 'redelegate'
+          and TX_SUCCEEDED = 'TRUE'
+    ),
+    undelegate as (
+        select validator_address, 
+               tx_id,
+               amount/pow(10,6) as undelegate_amt,
+               delegator_address
+        from axelar.gov.fact_staking
+        where action = 'undelegate'
+          and TX_SUCCEEDED = 'TRUE'
+          and block_timestamp::date >= '2022-08-01'
+        UNION
+        select REDELEGATE_SOURCE_VALIDATOR_ADDRESS as validator_address, 
+               tx_id,
+               amount/pow(10,6) as undelegate_amt,
+               delegator_address
+        from axelar.gov.fact_staking
+        where action = 'redelegate'
+          and TX_SUCCEEDED = 'TRUE'
+          and block_timestamp::date >= '2022-08-01'
+    ),
+    delegation as (
+        select validator_address,
+               sum(delegate_amt) as delegate_amounts
+        from delegate
+        group by 1
+    ),
+    undelegation as (
+        select validator_address,
+               sum(undelegate_amt) as undelegate_amounts
+        from undelegate
+        group by 1
+    )
+    select ifnull(label, a.validator_address) as "Validator",
+           round(delegate_amounts,1) as "Delegate Amount",
+           round(ifnull(undelegate_amounts,0),1) as "Undelegate Amount",
+           "Delegate Amount" - "Undelegate Amount" as "Net Delegate Amount" 
+    from delegation a 
+    left outer join undelegation b on a.validator_address = b.validator_address
+    left outer join axelar.gov.fact_validators c on a.validator_address = c.address
+    order by 4 desc 
+    limit 75
+    """
+    return pd.read_sql(query, conn)
    
 # --- Load Data ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
@@ -608,6 +671,7 @@ daily_share = load_daily_share_delegated_amount()
 share_amount = load_share_amount()
 monthly_validators = load_monthly_new_validators(start_date, end_date)
 redelegate_data = get_redelegate_data()
+net_delegate_data = get_net_delegated_per_validator()
 
 # --- Row 1: KPI ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -1163,6 +1227,32 @@ with col2:
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
         st.warning("No data available for transactions.")
+
+# --- Row17: Plot Horizontal Bar Chart ------------------------------------------------------------------------
+if not net_delegate_data.empty:
+    fig = go.Figure(go.Bar(
+        x=net_delegate_data["Net Delegate Amount"],
+        y=net_delegate_data["Validator"],
+        orientation='h',
+        marker=dict(
+            color=net_delegate_data["Net Delegate Amount"],
+            colorscale='Blues'
+        ),
+        text=net_delegate_data["Net Delegate Amount"],
+        textposition='outside'
+    ))
+
+    fig.update_layout(
+        title="Current Net Delegated Per Validator",
+        xaxis_title="Net Delegate Amount (AXL)",
+        yaxis_title="Validator",
+        height=1000,
+        yaxis=dict(autorange="reversed")  
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("No data available for Net Delegated Amount per Validator.")
 
 # --- Reference and Rebuild Info ---------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
