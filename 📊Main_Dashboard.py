@@ -255,6 +255,32 @@ def load_monthly_delegation_data(start_date, end_date):
         df['monthly'] = pd.to_datetime(df['MONTHLY'])
     return df
 
+# --- Row7: Users, Txns & Amount By Action ------------------------------------------------------------
+@st.cache_data
+def load_action_summary_by_type(start_date, end_date):
+    query = f"""
+        SELECT 'Delegate' AS "Type", 
+               ROUND(SUM(amount/POW(10,6)),1) AS "Amount",
+               COUNT(DISTINCT tx_id) AS "Txns",
+               COUNT(DISTINCT DELEGATOR_ADDRESS) AS "Users"
+        FROM axelar.gov.fact_staking
+        WHERE action = 'delegate'
+          AND block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+        GROUP BY 1
+        UNION
+        SELECT 'Undelegate' AS "Type",
+               ROUND(SUM(amount/POW(10,6)),1) AS "Amount",
+               COUNT(DISTINCT tx_id) AS "Txns",
+               COUNT(DISTINCT DELEGATOR_ADDRESS) AS "Users"
+        FROM axelar.gov.fact_staking
+        WHERE action = 'undelegate'
+          AND block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+        GROUP BY 1
+    """
+    return pd.read_sql(query, conn)
+
    
 # --- Load Data -----------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
@@ -262,6 +288,7 @@ monthly_share_df = load_monthly_share_data(start_date, end_date)
 delegate_kpis_df = load_delegate_kpis(start_date, end_date)
 current_net_staked = load_current_net_staked(start_date, end_date)
 monthly_data = load_monthly_delegation_data(start_date, end_date)
+action_summary2 = load_action_summary_by_type(start_date, end_date)
 
 # --- Row 1: KPI ------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -397,6 +424,66 @@ if not monthly_data.empty:
         st.plotly_chart(fig3, use_container_width=True)
 else:
     st.warning("No data available for Monthly Delegation details in the selected period.")
+
+# --- Row 7: Three Charts -------------------------------------------------------------------------------------------
+if not action_summary2.empty:
+    col1, col2, col3 = st.columns(3)
+
+    # Chart 1: Number of Users By Action
+    with col1:
+        fig1 = go.Figure()
+        fig1.add_bar(
+            x=action_summary2["Type"],
+            y=action_summary2["Users"],
+            text=action_summary2["Users"],
+            textposition="outside",
+            marker_color=["#1f77b4", "#ff7f0e"]
+        )
+        fig1.update_layout(
+            title="Number of Users By Action",
+            yaxis_title="Users",
+            height=400
+        )
+        st.plotly_chart(fig1, use_container_width=True)
+
+    # Chart 2: Number of Transactions By Action (Donut)
+    with col2:
+        fig2 = go.Figure(data=[
+            go.Pie(
+                labels=action_summary2["Type"],
+                values=action_summary2["Txns"],
+                hole=0.4,
+                textinfo="label+percent",
+                hovertemplate="%{label}: %{value} Txns"
+            )
+        ])
+        fig2.update_layout(
+            title="Number of Transactions By Action",
+            height=400,
+            legend=dict(x=0, y=1.1, orientation="h")
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+
+    # Chart 3: Amount of Transactions By Action (Donut)
+    with col3:
+        fig3 = go.Figure(data=[
+            go.Pie(
+                labels=action_summary2["Type"],
+                values=action_summary2["Amount"],
+                hole=0.4,
+                textinfo="label+percent",
+                hovertemplate="%{label}: %{value} AXL"
+            )
+        ])
+        fig3.update_layout(
+            title="Amount of Transactions By Action",
+            height=400,
+            legend=dict(x=0, y=1.1, orientation="h")
+        )
+        st.plotly_chart(fig3, use_container_width=True)
+
+else:
+    st.warning("No data available for the selected period.")
 
 
 # --- Reference and Rebuild Info --------------------------------------------------------------------------------------
