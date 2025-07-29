@@ -1008,7 +1008,7 @@ active_validators_value = monthly_validators["Active Validators"].iloc[-1] if no
 if active_validators_value is not None:
     st.markdown(
         f"""
-        <div style="text-align: center; padding: 2px; background-color: #f8f9fa; border-radius: 15px; margin: 20px 0;">
+        <div style="text-align: center; padding: 40px; background-color: #f8f9fa; border-radius: 15px; margin: 20px 0;">
             <h2 style="font-size: 32px; margin-bottom: 10px;">Active Validators</h2>
             <p style="font-size: 48px; font-weight: bold; color: #1565c0;">{active_validators_value:,}</p>
             <p style="font-size: 16px; color: #6c757d;">Last Stat</p>
