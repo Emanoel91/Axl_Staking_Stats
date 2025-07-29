@@ -854,8 +854,8 @@ if not monthly_new_delegators.empty:
     fig.update_layout(
         title="Monthly New Delegators",
         xaxis=dict(title="Month"),
-        yaxis=dict(title="New Delegators", side="left"),
-        yaxis2=dict(title="Cumulative New Delegators", overlaying="y", side="right"),
+        yaxis=dict(title="User count", side="left"),
+        yaxis2=dict(title="User count", overlaying="y", side="right"),
         height=500,
         legend=dict(x=0, y=1.1, orientation="h")
     )
