@@ -426,7 +426,7 @@ if not monthly_data.empty:
 else:
     st.warning("No data available for Monthly Delegation details in the selected period.")
 
-if not action_summary.empty:
+# -- if not action_summary.empty:
     col1, col2, col3 = st.columns(3)
 
     # --- Row7: Chart 1: Total Number of Users & Transactions By Action -------------
