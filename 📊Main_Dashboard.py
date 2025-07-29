@@ -289,8 +289,7 @@ monthly_share_df = load_monthly_share_data(start_date, end_date)
 delegate_kpis_df = load_delegate_kpis(start_date, end_date)
 current_net_staked = load_current_net_staked(start_date, end_date)
 monthly_data = load_monthly_delegation_data(start_date, end_date)
-action_summary = load_action_summary(start_date, end_date)
-if not action_summary.empty:
+
 
 # --- Row 1: KPI ------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -427,6 +426,8 @@ if not monthly_data.empty:
 else:
     st.warning("No data available for Monthly Delegation details in the selected period.")
 
+    action_summary = load_action_summary(start_date, end_date)
+if not action_summary.empty:
  
     col1, col2, col3 = st.columns(3)
 
