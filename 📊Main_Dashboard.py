@@ -566,7 +566,7 @@ def load_monthly_new_validators(start_date, end_date):
     return pd.read_sql(query, conn)
 
 # --- Row16: Redelegations -------------------------------------------------------------------
-def get_redelegate_data(engine):
+def get_redelegate_data():
     query = """
     with validators as (
         select ifnull(b.label, a.validator_address) as source, 
@@ -590,7 +590,7 @@ def get_redelegate_data(engine):
     order by 2 desc 
     limit 10
     """
-    return pd.read_sql(query, engine)
+    return pd.read_sql(query, conn)
    
 # --- Load Data ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
