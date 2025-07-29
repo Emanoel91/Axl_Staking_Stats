@@ -564,6 +564,33 @@ def load_monthly_new_validators(start_date, end_date):
         ORDER BY 1
     """
     return pd.read_sql(query, conn)
+
+# --- Row16: Redelegations -------------------------------------------------------------------
+def get_redelegate_data(engine):
+    query = """
+    with validators as (
+        select ifnull(b.label, a.validator_address) as source, 
+               ifnull(c.label, a.validator_address) as to_validator,
+               amount/pow(10,6) as amt,
+               tx_id
+        from axelar.gov.fact_staking a 
+        left outer join axelar.gov.fact_validators b 
+            on a.REDELEGATE_SOURCE_VALIDATOR_ADDRESS = b.address
+        left outer join axelar.gov.fact_validators c 
+            on a.VALIDATOR_ADDRESS = c.address
+        where action = 'redelegate'
+          and TX_SUCCEEDED = 'TRUE'
+    )
+    select concat(source, '->', to_validator) as "Validator",
+           sum(amt) as "Redelegate Amount", 
+           avg(amt) as "Avg Amount",
+           count(DISTINCT tx_id) as "Transactions" 
+    from validators 
+    group by 1
+    order by 2 desc 
+    limit 10
+    """
+    return pd.read_sql(query, engine)
    
 # --- Load Data ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
@@ -580,6 +607,7 @@ monthly_new_delegators = load_monthly_new_delegators(start_date, end_date)
 daily_share = load_daily_share_delegated_amount()
 share_amount = load_share_amount()
 monthly_validators = load_monthly_new_validators(start_date, end_date)
+redelegate_data = get_redelegate_data(engine)
 
 # --- Row 1: KPI ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -1062,6 +1090,78 @@ if not monthly_validators.empty:
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("No data available for Monthly New Validators in the selected period.")
+
+# -- Row 16 -----------------------------------------
+col1, col2 = st.columns(2)
+
+# --- Bar-Line Chart: Top 10 Validators Based on Redelegate Amount ---
+with col1:
+    if not redelegate_data.empty:
+        fig_bar_line = go.Figure()
+
+        # Bar: Redelegate Amount
+        fig_bar_line.add_trace(go.Bar(
+            x=redelegate_data["Validator"],
+            y=redelegate_data["Redelegate Amount"],
+            name="Redelegate Amount",
+            yaxis="y1",
+            marker_color="#42a5f5"
+        ))
+
+        # Line: Avg Amount
+        fig_bar_line.add_trace(go.Scatter(
+            x=redelegate_data["Validator"],
+            y=redelegate_data["Avg Amount"],
+            name="Avg Amount",
+            yaxis="y2",
+            mode="lines+markers",
+            line=dict(color="#ff9800", width=2)
+        ))
+
+        fig_bar_line.update_layout(
+            title="Top 10 Validators Based on Redelegate Amount",
+            xaxis=dict(title="Validator"),
+            yaxis=dict(
+                title="Redelegate Amount",
+                side="left",
+                showgrid=False
+            ),
+            yaxis2=dict(
+                title="Avg Amount",
+                side="right",
+                overlaying="y"
+            ),
+            height=500,
+            legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"),
+            barmode="group"
+        )
+
+        st.plotly_chart(fig_bar_line, use_container_width=True)
+    else:
+        st.warning("No data available for redelegate amounts.")
+
+# --- Pie Chart: Share of Transactions ---
+with col2:
+    if not redelegate_data.empty:
+        fig_pie = go.Figure(data=[
+            go.Pie(
+                labels=redelegate_data["Validator"],
+                values=redelegate_data["Transactions"],
+                textinfo="label+percent",
+                hovertemplate="%{label}: %{value} Transactions",
+                marker=dict(colors=px.colors.qualitative.Set3)
+            )
+        ])
+
+        fig_pie.update_layout(
+            title="Share of Transactions",
+            height=500,
+            legend=dict(x=1, y=0.5, orientation="v")  # labels on the right
+        )
+
+        st.plotly_chart(fig_pie, use_container_width=True)
+    else:
+        st.warning("No data available for transactions.")
 
 # --- Reference and Rebuild Info ---------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
