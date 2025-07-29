@@ -932,7 +932,7 @@ with col1:
             y="Delegated Amount",
             color="Type",
             groupnorm="fraction",  # normalized
-            title="Daily Share of Delegated Amount (30D)",
+            title="Daily Share of Delegated Amount (60D)",
             labels={"Delegated Amount": "Share of Delegated Amount"}
         )
         fig1.update_layout(
@@ -959,7 +959,7 @@ with col2:
             ]
         )
         fig2.update_layout(
-            title="Share of Amount (30D)",
+            title="Share of Amount (60D)",
             height=450,
             legend=dict(orientation="v", x=1.1, y=0.5)
         )
