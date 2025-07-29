@@ -485,6 +485,59 @@ def load_monthly_new_delegators(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
+# --- Row13 -----------------------------------------
+@st.cache_data
+def load_daily_share_delegated_amount():
+    query = """
+        WITH new AS (
+            SELECT MIN(block_timestamp) AS daily, DELEGATOR_ADDRESS
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+            GROUP BY 2
+        ),
+        final AS (
+            SELECT DISTINCT DELEGATOR_ADDRESS
+            FROM new
+            WHERE daily >= CURRENT_DATE - 90
+        )
+        SELECT DATE(block_timestamp) AS "Date",
+               CASE WHEN delegator_address IN (SELECT delegator_address FROM final) THEN 'New Stakers'
+                    ELSE 'Active Stakers' END AS "Type",
+               SUM(amount/POW(10,6)) AS "Delegated Amount"
+        FROM axelar.gov.fact_staking
+        WHERE action = 'delegate'
+          AND TX_SUCCEEDED = TRUE
+          AND block_timestamp::date >= CURRENT_DATE - 31
+        GROUP BY 1,2
+        ORDER BY 1 ASC
+    """
+    return pd.read_sql(query, conn)
+
+@st.cache_data
+def load_share_amount():
+    query = """
+        WITH new AS (
+            SELECT MIN(block_timestamp) AS daily, delegator_address
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+            GROUP BY 2
+        ),
+        final AS (
+            SELECT DISTINCT delegator_address
+            FROM new
+            WHERE daily >= CURRENT_DATE - 90
+        )
+        SELECT CASE WHEN delegator_address IN (SELECT delegator_address FROM final) THEN 'New Stakers'
+                    ELSE 'Active Stakers' END AS "Type",
+               ROUND(SUM(amount/POW(10,6))) AS "Delegated Amount"
+        FROM axelar.gov.fact_staking
+        WHERE action = 'delegate'
+          AND TX_SUCCEEDED = TRUE
+          AND block_timestamp::date >= CURRENT_DATE - 31
+        GROUP BY 1
+    """
+    return pd.read_sql(query, conn)
+
    
 # --- Load Data ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
@@ -498,6 +551,8 @@ top_delegators_df = load_top_delegators(start_date, end_date)
 users_breakdown_df = load_users_breakdown(start_date, end_date)
 new_delegators_df = load_new_delegators()
 monthly_new_delegators = load_monthly_new_delegators(start_date, end_date)
+daily_share = load_daily_share_delegated_amount()
+share_amount = load_share_amount()
 
 # --- Row 1: KPI ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -864,7 +919,52 @@ if not monthly_new_delegators.empty:
 else:
     st.warning("No data available for Monthly New Delegators in the selected period.")
 
+# --- Row12: Two Charts Side by Side ------------------------------------------------------------------------------------
+col1, col2 = st.columns(2)
 
+# Normalized Area Chart
+with col1:
+    if not daily_share.empty:
+        fig1 = px.area(
+            daily_share,
+            x="Date",
+            y="Delegated Amount",
+            color="Type",
+            groupnorm="fraction",  # normalized
+            title="Daily Share of Delegated Amount (30D)",
+            labels={"Delegated Amount": "Share of Delegated Amount"}
+        )
+        fig1.update_layout(
+            yaxis=dict(tickformat=".0%"),
+            height=450,
+            legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center")
+        )
+        st.plotly_chart(fig1, use_container_width=True)
+    else:
+        st.warning("No data available for Daily Share of Delegated Amount (30D).")
+
+# Donut Chart
+with col2:
+    if not share_amount.empty:
+        fig2 = go.Figure(
+            data=[
+                go.Pie(
+                    labels=share_amount["Type"],
+                    values=share_amount["Delegated Amount"],
+                    hole=0.4,
+                    textinfo="label+percent",
+                    hovertemplate="%{label}: %{value} AXL",
+                )
+            ]
+        )
+        fig2.update_layout(
+            title="Share of Amount (30D)",
+            height=450,
+            legend=dict(orientation="v", x=1.1, y=0.5)
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.warning("No data available for Share of Amount (30D).")
 
 # --- Reference and Rebuild Info ---------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
