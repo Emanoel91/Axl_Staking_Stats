@@ -673,7 +673,7 @@ else:
 
 # --- Row9: Display Table -----------------------------------------------
 if not top_delegators_df.empty:
-    # فرمت اعداد: بدون اعشارهای اضافی و جداکننده هزارگان
+    
     top_delegators_df = top_delegators_df.applymap(
         lambda x: '{:,.0f}'.format(x) if isinstance(x, (int, float)) else x
     )
@@ -711,10 +711,16 @@ if not users_breakdown_df.empty:
             )
         ])
         fig1.update_layout(
-            title="Share of Users",
-            height=400,
-            legend=dict(x=0, y=1.1, orientation="h")
-        )
+           title="Share of Users",
+           height=400,
+           legend=dict(
+              x=1,       
+              y=0.5,      
+              xanchor="left",  
+              yanchor="middle",
+              orientation="v"  
+           )
+         )
         st.plotly_chart(fig1, use_container_width=True)
 
     # --- Chart 2: Breakdown of Users (Clustered Bar) ----------------------------------------------------------------
