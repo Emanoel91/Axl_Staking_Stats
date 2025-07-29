@@ -464,6 +464,27 @@ def load_new_delegators():
     """
     return pd.read_sql(query, conn)
 
+# --- Row12: Monthly New Delegators ----------------------------------------------------------------------
+@st.cache_data
+def load_monthly_new_delegators(start_date, end_date):
+    query = f"""
+        WITH new AS (
+            SELECT MIN(block_timestamp) AS daily,
+                   delegator_address
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+            GROUP BY 2
+        )
+        SELECT TRUNC(daily, 'month') AS "Month",
+               COUNT(DISTINCT delegator_address) AS "New Delegators",
+               SUM(COUNT(DISTINCT delegator_address)) OVER (ORDER BY TRUNC(daily, 'month') ASC) AS "Cumulative New Delegators"
+        FROM new
+        WHERE daily::date >= '{start_date}' AND daily::date <= '{end_date}'
+        GROUP BY 1
+        ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
+
    
 # --- Load Data ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
@@ -476,6 +497,7 @@ current_delegators = load_current_number_of_delegators(start_date, end_date)
 top_delegators_df = load_top_delegators(start_date, end_date)
 users_breakdown_df = load_users_breakdown(start_date, end_date)
 new_delegators_df = load_new_delegators()
+monthly_new_delegators = load_monthly_new_delegators(start_date, end_date)
 
 # --- Row 1: KPI ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -805,6 +827,42 @@ if not new_delegators_df.empty:
         )
 else:
     st.warning("No data available for new delegators.")
+
+# --- Row12: Monthly New Delegators -----------------------------------------------------------------------------------
+if not monthly_new_delegators.empty:
+    fig = go.Figure()
+
+    # Bar chart for New Delegators
+    fig.add_bar(
+        x=monthly_new_delegators["Month"],
+        y=monthly_new_delegators["New Delegators"],
+        name="New Delegators",
+        marker_color="steelblue",
+        yaxis="y1"
+    )
+
+    # Line chart for Cumulative New Delegators
+    fig.add_scatter(
+        x=monthly_new_delegators["Month"],
+        y=monthly_new_delegators["Cumulative New Delegators"],
+        name="Cumulative New Delegators",
+        mode="lines+markers",
+        line=dict(color="orange", width=3),
+        yaxis="y2"
+    )
+
+    fig.update_layout(
+        title="Monthly New Delegators",
+        xaxis=dict(title="Month"),
+        yaxis=dict(title="New Delegators", side="left"),
+        yaxis2=dict(title="Cumulative New Delegators", overlaying="y", side="right"),
+        height=500,
+        legend=dict(x=0, y=1.1, orientation="h")
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("No data available for Monthly New Delegators in the selected period.")
 
 
 
