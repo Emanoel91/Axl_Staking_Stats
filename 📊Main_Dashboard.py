@@ -254,35 +254,7 @@ def load_monthly_delegation_data(start_date, end_date):
     if not df.empty:
         df['monthly'] = pd.to_datetime(df['MONTHLY'])
     return df
-
-# --- Row7: Action Summary -----------------
-@st.cache_data
-def load_action_summary(start_date, end_date):
-    query = f"""
-        SELECT 'Delegate' AS type, 
-               ROUND(SUM(amount/POW(10,6)),1) AS amount,
-               COUNT(DISTINCT tx_id) AS txns,
-               COUNT(DISTINCT DELEGATOR_ADDRESS) AS users,
-               ROUND(AVG(amount/POW(10,6)),1) AS avg_amount
-        FROM axelar.gov.fact_staking
-        WHERE action = 'delegate'
-          AND block_timestamp::date >= '{start_date}'
-          AND block_timestamp::date <= '{end_date}'
-        GROUP BY 1
-        UNION
-        SELECT 'Undelegate' AS type,
-               ROUND(SUM(amount/POW(10,6)),1) AS amount,
-               COUNT(DISTINCT tx_id) AS txns,
-               COUNT(DISTINCT DELEGATOR_ADDRESS) AS users,
-               ROUND(AVG(amount/POW(10,6)),1) AS avg_amount
-        FROM axelar.gov.fact_staking
-        WHERE action = 'undelegate'
-          AND block_timestamp::date >= '{start_date}'
-          AND block_timestamp::date <= '{end_date}'
-        GROUP BY 1
-    """
-    return pd.read_sql(query, conn)
-    
+   
 # --- Load Data -----------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
 monthly_share_df = load_monthly_share_data(start_date, end_date)
@@ -426,12 +398,41 @@ if not monthly_data.empty:
 else:
     st.warning("No data available for Monthly Delegation details in the selected period.")
 
-    action_summary = load_action_summary(start_date, end_date)
+    # --- Query Function for Action Summary -------------------------------------------------------------------------------
+@st.cache_data
+def load_action_summary(start_date, end_date):
+    query = f"""
+        SELECT 'Delegate' AS type, 
+               ROUND(SUM(amount/POW(10,6)),1) AS amount,
+               COUNT(DISTINCT tx_id) AS txns,
+               COUNT(DISTINCT DELEGATOR_ADDRESS) AS users,
+               ROUND(AVG(amount/POW(10,6)),1) AS avg_amount
+        FROM axelar.gov.fact_staking
+        WHERE action = 'delegate'
+          AND block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+        GROUP BY 1
+        UNION
+        SELECT 'Undelegate' AS type,
+               ROUND(SUM(amount/POW(10,6)),1) AS amount,
+               COUNT(DISTINCT tx_id) AS txns,
+               COUNT(DISTINCT DELEGATOR_ADDRESS) AS users,
+               ROUND(AVG(amount/POW(10,6)),1) AS avg_amount
+        FROM axelar.gov.fact_staking
+        WHERE action = 'undelegate'
+          AND block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+        GROUP BY 1
+    """
+    return pd.read_sql(query, conn)
+
+# --- Load Data --------------------------------------------------------------------------------------------------------
+action_summary = load_action_summary(start_date, end_date)
+
 if not action_summary.empty:
- 
     col1, col2, col3 = st.columns(3)
 
-    # --- Row7: Chart 1: Total Number of Users & Transactions By Action -------------
+    # --- Chart 1: Total Number of Users & Transactions By Action ------------------------------------------------------
     with col1:
         fig1 = go.Figure()
         fig1.add_bar(x=action_summary['type'], y=action_summary['users'], name='Users', text=action_summary['users'],
@@ -447,7 +448,7 @@ if not action_summary.empty:
         )
         st.plotly_chart(fig1, use_container_width=True)
 
-    # --- Row7: Chart 2: Total Amount of Transactions By Action (Donut) -------------
+    # --- Chart 2: Total Amount of Transactions By Action (Donut) ------------------------------------------------------
     with col2:
         fig2 = go.Figure(data=[go.Pie(labels=action_summary['type'], values=action_summary['amount'],
                                       hole=0.4, textinfo='label+percent', hovertemplate='%{label}: %{value} AXL')])
@@ -458,7 +459,7 @@ if not action_summary.empty:
         )
         st.plotly_chart(fig2, use_container_width=True)
 
-    # --- Row7: Chart 3: Average Amount of Transactions By Action -----------
+    # --- Chart 3: Average Amount of Transactions By Action ------------------------------------------------------------
     with col3:
         fig3 = go.Figure()
         fig3.add_bar(x=action_summary['type'], y=action_summary['avg_amount'], text=action_summary['avg_amount'],
