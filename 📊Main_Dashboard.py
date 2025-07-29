@@ -607,7 +607,7 @@ monthly_new_delegators = load_monthly_new_delegators(start_date, end_date)
 daily_share = load_daily_share_delegated_amount()
 share_amount = load_share_amount()
 monthly_validators = load_monthly_new_validators(start_date, end_date)
-redelegate_data = get_redelegate_data(engine)
+redelegate_data = get_redelegate_data()
 
 # --- Row 1: KPI ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
