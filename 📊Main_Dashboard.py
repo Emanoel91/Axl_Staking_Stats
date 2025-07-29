@@ -994,6 +994,15 @@ with col2:
         st.warning("No data available for Share of Amount (60D).")
 
 # --- Row14: KPI for Active Validators ----------------------------------------------------------------------------------
+st.markdown(
+    """
+    <div style="background-color:#fc0060; padding:1px; border-radius:10px;">
+        <h2 style="color:#000000; text-align:center;">Validators</h2>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 active_validators_value = monthly_validators["Active Validators"].iloc[-1] if not monthly_validators.empty else None
 
 if active_validators_value is not None:
