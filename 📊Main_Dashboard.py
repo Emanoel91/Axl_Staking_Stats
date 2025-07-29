@@ -394,6 +394,51 @@ def load_top_delegators(start_date, end_date):
     else:
         return pd.DataFrame()
 
+# --- Row10: Users Breakdown -----------------
+@st.cache_data
+def load_users_breakdown(start_date, end_date):
+    query = f"""
+        WITH final AS (
+            SELECT 'Delegate' AS type,
+                   DELEGATOR_ADDRESS,
+                   SUM(amount/POW(10,6)) AS amount,
+                   COUNT(DISTINCT tx_id) AS txns,
+                   COUNT(DISTINCT DELEGATOR_ADDRESS) AS user,
+                   AVG(amount/POW(10,6)) AS avg_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'delegate'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1,2
+            UNION
+            SELECT 'Undelegate' AS type,
+                   DELEGATOR_ADDRESS,
+                   SUM(amount/POW(10,6)) AS amount,
+                   COUNT(DISTINCT tx_id) AS txns,
+                   COUNT(DISTINCT DELEGATOR_ADDRESS) AS user,
+                   AVG(amount/POW(10,6)) AS avg_amount
+            FROM axelar.gov.fact_staking
+            WHERE action = 'undelegate'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1,2
+        )
+        SELECT COUNT(DISTINCT DELEGATOR_ADDRESS) AS users_count,
+               type,
+               CASE
+                   WHEN amount <= 10 THEN '<= 10 Axl'
+                   WHEN amount <= 100 THEN '10-100 Axl'
+                   WHEN amount <= 1000 THEN '100-1k Axl'
+                   WHEN amount <= 10000 THEN '1k-10k Axl'
+                   WHEN amount <= 100000 THEN '10k-100k Axl'
+                   WHEN amount <= 1000000 THEN '100k-1m Axl'
+                   WHEN amount > 1000000 THEN '> 1m Axl'
+               END AS category
+        FROM final
+        GROUP BY 2,3
+    """
+    return pd.read_sql(query, conn)
+
    
 # --- Load Data ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
@@ -404,6 +449,7 @@ monthly_data = load_monthly_delegation_data(start_date, end_date)
 action_summary2 = load_action_summary_by_type(start_date, end_date)
 current_delegators = load_current_number_of_delegators(start_date, end_date)
 top_delegators_df = load_top_delegators(start_date, end_date)
+users_breakdown_df = load_users_breakdown(start_date, end_date)
 
 # --- Row 1: KPI ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
@@ -649,9 +695,55 @@ if not top_delegators_df.empty:
 else:
     st.warning("No data available for top delegators in the selected period.")
 
+# --- Row10: Charts ---------------------------------------------------------------------------------------------------
+if not users_breakdown_df.empty:
+    col1, col2 = st.columns(2)
+
+    # --- Chart 1: Share of Users (Donut) ----------------------------------------------------------------------------
+    with col1:
+        fig1 = go.Figure(data=[
+            go.Pie(
+                labels=users_breakdown_df["category"],
+                values=users_breakdown_df["users_count"],
+                hole=0.4,
+                textinfo="label+percent",
+                hovertemplate="%{label}: %{value} Users"
+            )
+        ])
+        fig1.update_layout(
+            title="Share of Users",
+            height=400,
+            legend=dict(x=0, y=1.1, orientation="h")
+        )
+        st.plotly_chart(fig1, use_container_width=True)
+
+    # --- Chart 2: Breakdown of Users (Clustered Bar) ----------------------------------------------------------------
+    with col2:
+        fig2 = go.Figure()
+        for t in users_breakdown_df["type"].unique():
+            df_type = users_breakdown_df[users_breakdown_df["type"] == t]
+            fig2.add_bar(
+                x=df_type["category"],
+                y=df_type["users_count"],
+                name=t,
+                text=df_type["users_count"],
+                textposition="outside"
+            )
+        fig2.update_layout(
+            barmode="group",
+            title="Breakdown of Users",
+            xaxis_title="Category",
+            yaxis_title="Users Count",
+            height=400,
+            legend=dict(x=0, y=1.1, orientation="h")
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+else:
+    st.warning("No data available for users breakdown in the selected period.")
 
 
-# --- Reference and Rebuild Info --------------------------------------------------------------------------------------
+
+# --- Reference and Rebuild Info ---------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
     """
     <div style="margin-top: 20px; margin-bottom: 20px; font-size: 16px;">
