@@ -993,76 +993,71 @@ with col2:
     else:
         st.warning("No data available for Share of Amount (60D).")
 
-# --- Row14: KPI for Active Validators ----------------------------------------------------------------------------------
-st.markdown(
-    """
-    <div style="background-color:#fc0060; padding:1px; border-radius:10px;">
-        <h2 style="color:#000000; text-align:center;">Validators</h2>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# --- Row14: ----------------------------------------------------------------------------------
+col1, col2 = st.columns([1, 3])
 
-active_validators_value = monthly_validators["Active Validators"].iloc[-1] if not monthly_validators.empty else None
+with col1:
+    active_validators_value = monthly_validators["Active Validators"].iloc[-1] if not monthly_validators.empty else None
 
-if active_validators_value is not None:
-    st.markdown(
-        f"""
-        <div style="text-align: center; padding: 40px; background-color: #f8f9fa; border-radius: 15px; margin: 20px 0;">
-            <h2 style="font-size: 32px; margin-bottom: 10px;">Active Validators</h2>
-            <p style="font-size: 48px; font-weight: bold; color: #1565c0;">{active_validators_value:,}</p>
-            <p style="font-size: 16px; color: #6c757d;">Last Stat</p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-else:
-    st.warning("No data available for Active Validators in the selected period.")
+    if active_validators_value is not None:
+        st.markdown(
+            f"""
+            <div style="text-align: center; padding: 40px; background-color: #f8f9fa; border-radius: 15px; margin: 20px 0;">
+                <h2 style="font-size: 32px; margin-bottom: 10px;">Active Validators</h2>
+                <p style="font-size: 48px; font-weight: bold; color: #1565c0;">{active_validators_value:,}</p>
+                <p style="font-size: 16px; color: #6c757d;">Last Stat</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.warning("No data available for Active Validators in the selected period.")
 
-# --- Row15: Chart for Monthly New Validators ---------------------------------------------------------------------------
-if not monthly_validators.empty:
-    fig = go.Figure()
+with col2:
+    if not monthly_validators.empty:
+        fig = go.Figure()
 
-    # Bar: New Validators
-    fig.add_trace(go.Bar(
-        x=monthly_validators["Month"],
-        y=monthly_validators["New Validators"],
-        name="New Validators",
-        yaxis="y2",
-        marker_color="#42a5f5"
-    ))
+        # Bar: New Validators
+        fig.add_trace(go.Bar(
+            x=monthly_validators["Month"],
+            y=monthly_validators["New Validators"],
+            name="New Validators",
+            yaxis="y2",
+            marker_color="#42a5f5"
+        ))
 
-    # Line: Cumulative New Validators
-    fig.add_trace(go.Scatter(
-        x=monthly_validators["Month"],
-        y=monthly_validators["Cumulative New Validators"],
-        name="Cumulative New Validators",
-        mode="lines+markers",
-        line=dict(color="#ef5350", width=2),
-        yaxis="y1"
-    ))
+        # Line: Cumulative New Validators
+        fig.add_trace(go.Scatter(
+            x=monthly_validators["Month"],
+            y=monthly_validators["Cumulative New Validators"],
+            name="Cumulative New Validators",
+            mode="lines+markers",
+            line=dict(color="#ef5350", width=2),
+            yaxis="y1"
+        ))
 
-    fig.update_layout(
-        title="Monthly New Validators",
-        xaxis=dict(title="Month"),
-        yaxis=dict(
-            title="Number of Validators",
-            side="left",
-            showgrid=False
-        ),
-        yaxis2=dict(
-            title="Number of Validators",
-            side="right",
-            overlaying="y"
-        ),
-        height=500,
-        legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"),
-        barmode="group"
-    )
+        fig.update_layout(
+            title="Monthly New Validators",
+            xaxis=dict(title="Month"),
+            yaxis=dict(
+                title="Cumulative New Validators",
+                side="left",
+                showgrid=False
+            ),
+            yaxis2=dict(
+                title="New Validators",
+                side="right",
+                overlaying="y"
+            ),
+            height=500,
+            legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"),
+            barmode="group"
+        )
 
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("No data available for Monthly New Validators in the selected period.")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("No data available for Monthly New Validators in the selected period.")
+
 
 # --- Reference and Rebuild Info ---------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
