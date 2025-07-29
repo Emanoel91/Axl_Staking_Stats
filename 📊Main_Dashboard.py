@@ -1026,7 +1026,7 @@ if not monthly_validators.empty:
     fig.add_trace(go.Bar(
         x=monthly_validators["Month"],
         y=monthly_validators["New Validators"],
-        name="New Validators",
+        name="Validators count",
         yaxis="y2",
         marker_color="#42a5f5"
     ))
@@ -1050,7 +1050,7 @@ if not monthly_validators.empty:
             showgrid=False
         ),
         yaxis2=dict(
-            title="New Validators",
+            title="Validators count",
             side="right",
             overlaying="y"
         ),
