@@ -646,7 +646,7 @@ def get_net_delegated_per_validator():
     select ifnull(label, a.validator_address) as "Validator",
            round(delegate_amounts,1) as "Delegate Amount",
            round(ifnull(undelegate_amounts,0),1) as "Undelegate Amount",
-           "Delegate Amount" - "Undelegate Amount" as "Net Delegate Amount" 
+           round(("Delegate Amount" - "Undelegate Amount"),1) as "Net Delegate Amount" 
     from delegation a 
     left outer join undelegation b on a.validator_address = b.validator_address
     left outer join axelar.gov.fact_validators c on a.validator_address = c.address
