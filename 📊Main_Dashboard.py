@@ -427,16 +427,17 @@ else:
     st.warning("No data available for Monthly Delegation details in the selected period.")
 
 # -- Row7 ----------------------------------
-if not action_summary.empty:
+required_cols = {'type', 'users', 'txns', 'amount', 'avg_amount'}
+if not action_summary.empty and required_cols.issubset(action_summary.columns):
     col1, col2, col3 = st.columns(3)
 
     # --- Chart 1: Total Number of Users & Transactions By Action ----
     with col1:
         fig1 = go.Figure()
-        fig1.add_bar(x=action_summary['type'], y=action_summary['users'], name='Users', text=action_summary['users'],
-                     textposition='outside', marker_color='blue')
-        fig1.add_bar(x=action_summary['type'], y=action_summary['txns'], name='Transactions', text=action_summary['txns'],
-                     textposition='outside', marker_color='orange')
+        fig1.add_bar(x=action_summary['type'], y=action_summary['users'], name='Users',
+                     text=action_summary['users'], textposition='outside', marker_color='blue')
+        fig1.add_bar(x=action_summary['type'], y=action_summary['txns'], name='Transactions',
+                     text=action_summary['txns'], textposition='outside', marker_color='orange')
         fig1.update_layout(
             title="Total Number of Users & Transactions By Action",
             barmode='group',
@@ -449,7 +450,8 @@ if not action_summary.empty:
     # --- Chart 2: Total Amount of Transactions By Action (Donut) -----
     with col2:
         fig2 = go.Figure(data=[go.Pie(labels=action_summary['type'], values=action_summary['amount'],
-                                      hole=0.4, textinfo='label+percent', hovertemplate='%{label}: %{value} AXL')])
+                                      hole=0.4, textinfo='label+percent',
+                                      hovertemplate='%{label}: %{value} AXL')])
         fig2.update_layout(
             title="Total Amount of Transactions By Action",
             height=400,
@@ -460,8 +462,8 @@ if not action_summary.empty:
     # --- Chart 3: Average Amount of Transactions By Action -----
     with col3:
         fig3 = go.Figure()
-        fig3.add_bar(x=action_summary['type'], y=action_summary['avg_amount'], text=action_summary['avg_amount'],
-                     textposition='outside', marker_color='green')
+        fig3.add_bar(x=action_summary['type'], y=action_summary['avg_amount'],
+                     text=action_summary['avg_amount'], textposition='outside', marker_color='green')
         fig3.update_layout(
             title="Average Amount of Transactions By Action",
             yaxis_title="Average Amount [AXL]",
@@ -469,7 +471,8 @@ if not action_summary.empty:
         )
         st.plotly_chart(fig3, use_container_width=True)
 else:
-    st.warning("No action summary data available for the selected period.")
+    st.warning("No action summary data available for the selected period or expected columns are missing.")
+    st.write("Available columns:", list(action_summary.columns))
 
 # --- Reference and Rebuild Info --------------------------------------------------------------------------------------
 st.markdown(
