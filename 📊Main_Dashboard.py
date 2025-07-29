@@ -741,7 +741,7 @@ if not users_breakdown_df.empty:
             xaxis_title="Category",
             yaxis_title="Users Count",
             height=400,
-            legend=dict(x=0, y=1.1, orientation="h")
+            legend=dict(x=1, y=0.5, xanchor="left", yanchor="middle", orientation="v")
         )
         st.plotly_chart(fig2, use_container_width=True)
 else:
