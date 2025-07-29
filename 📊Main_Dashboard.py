@@ -625,8 +625,13 @@ if current_delegators is not None:
 else:
     st.warning("No data available for Current Number of Delegators in the selected period.")
 
-# --- Row9: Display Table ------------------------------
+# --- Row9: Display Table -----------------------------------------------
 if not top_delegators_df.empty:
+    # فرمت اعداد: بدون اعشارهای اضافی و جداکننده هزارگان
+    top_delegators_df = top_delegators_df.applymap(
+        lambda x: '{:,.0f}'.format(x) if isinstance(x, (int, float)) else x
+    )
+
     def highlight_top3(row):
         color = ''
         if row.name == 1:   # -- rank1-gold
@@ -643,6 +648,7 @@ if not top_delegators_df.empty:
     st.dataframe(styled_table, use_container_width=True)
 else:
     st.warning("No data available for top delegators in the selected period.")
+
 
 
 # --- Reference and Rebuild Info --------------------------------------------------------------------------------------
