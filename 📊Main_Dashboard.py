@@ -455,7 +455,7 @@ if not action_summary2.empty:
                 hole=0.4,
                 textinfo="label+percent",
                 hovertemplate="%{label}: %{value} Txns"
-                marker=dict(colors=["#1f77b4", "#ff7f0e"])  # ----------
+               
             )
         ])
         fig2.update_layout(
