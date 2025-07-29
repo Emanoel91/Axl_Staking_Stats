@@ -508,7 +508,7 @@ def load_daily_share_delegated_amount():
         FROM axelar.gov.fact_staking
         WHERE action = 'delegate'
           AND TX_SUCCEEDED = TRUE
-          AND block_timestamp::date >= CURRENT_DATE - 31
+          AND block_timestamp::date >= CURRENT_DATE - 61
         GROUP BY 1,2
         ORDER BY 1 ASC
     """
@@ -942,7 +942,7 @@ with col1:
         )
         st.plotly_chart(fig1, use_container_width=True)
     else:
-        st.warning("No data available for Daily Share of Delegated Amount (30D).")
+        st.warning("No data available for Daily Share of Delegated Amount (60D).")
 
 # Donut Chart
 with col2:
@@ -965,7 +965,7 @@ with col2:
         )
         st.plotly_chart(fig2, use_container_width=True)
     else:
-        st.warning("No data available for Share of Amount (30D).")
+        st.warning("No data available for Share of Amount (60D).")
 
 # --- Reference and Rebuild Info ---------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
