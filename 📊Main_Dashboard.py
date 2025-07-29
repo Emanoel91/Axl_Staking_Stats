@@ -1037,12 +1037,12 @@ if not monthly_validators.empty:
         title="Monthly New Validators",
         xaxis=dict(title="Month"),
         yaxis=dict(
-            title="Cumulative New Validators",
+            title="Number of Validators",
             side="left",
             showgrid=False
         ),
         yaxis2=dict(
-            title="New Validators",
+            title="Number of Validators",
             side="right",
             overlaying="y"
         ),
