@@ -433,7 +433,7 @@ def load_users_breakdown(start_date, end_date):
                    WHEN amount <= 100000 THEN '10k-100k Axl'
                    WHEN amount <= 1000000 THEN '100k-1m Axl'
                    WHEN amount > 1000000 THEN '> 1m Axl'
-               END AS category
+               END AS "Category"
         FROM final
         GROUP BY 2,3
     """
@@ -703,7 +703,7 @@ if not users_breakdown_df.empty:
     with col1:
         fig1 = go.Figure(data=[
             go.Pie(
-                labels=users_breakdown_df["category"],
+                labels=users_breakdown_df["Category"],
                 values=users_breakdown_df["users_count"],
                 hole=0.4,
                 textinfo="label+percent",
@@ -723,7 +723,7 @@ if not users_breakdown_df.empty:
         for t in users_breakdown_df["type"].unique():
             df_type = users_breakdown_df[users_breakdown_df["type"] == t]
             fig2.add_bar(
-                x=df_type["category"],
+                x=df_type["Category"],
                 y=df_type["users_count"],
                 name=t,
                 text=df_type["users_count"],
