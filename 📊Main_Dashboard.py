@@ -348,7 +348,7 @@ def load_current_number_of_delegators(start_date, end_date):
         return None
 
    
-# --- Load Data -----------------------------------------------------------------------------------------------------------
+# --- Load Data ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 share_of_staked_tokens = load_share_of_staked_tokens(start_date, end_date)
 monthly_share_df = load_monthly_share_data(start_date, end_date)
 delegate_kpis_df = load_delegate_kpis(start_date, end_date)
@@ -357,7 +357,7 @@ monthly_data = load_monthly_delegation_data(start_date, end_date)
 action_summary2 = load_action_summary_by_type(start_date, end_date)
 current_delegators = load_current_number_of_delegators(start_date, end_date)
 
-# --- Row 1: KPI ------------------------------------------------------------------------------------------------------------
+# --- Row 1: KPI ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 st.markdown(
     """
     <div style="background-color:#fc0060; padding:1px; border-radius:10px;">
@@ -554,6 +554,15 @@ else:
     st.warning("No data available for the selected period.")
 
 # --- Row8: Single KPI -------------------------------------------------------------------------------------------
+st.markdown(
+    """
+    <div style="background-color:#fc0060; padding:1px; border-radius:10px;">
+        <h2 style="color:#000000; text-align:center;">Users</h2>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 if current_delegators is not None:
     st.markdown(
         f"""
