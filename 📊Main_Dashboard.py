@@ -534,7 +534,7 @@ def load_share_amount():
         FROM axelar.gov.fact_staking
         WHERE action = 'delegate'
           AND TX_SUCCEEDED = TRUE
-          AND block_timestamp::date >= CURRENT_DATE - 31
+          AND block_timestamp::date >= CURRENT_DATE - 61
         GROUP BY 1
     """
     return pd.read_sql(query, conn)
