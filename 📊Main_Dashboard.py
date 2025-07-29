@@ -670,7 +670,7 @@ if not action_summary2.empty:
         fig2.update_layout(
             title="Number of Transactions By Action",
             height=400,
-            legend=dict(x=0, y=1.1, orientation="h")
+            legend=dict(x=1,y=0.5,xanchor="left",yanchor="middle",orientation="v")
         )
         st.plotly_chart(fig2, use_container_width=True)
 
@@ -688,7 +688,7 @@ if not action_summary2.empty:
         fig3.update_layout(
             title="Amount of Transactions By Action",
             height=400,
-            legend=dict(x=0, y=1.1, orientation="h")
+            legend=dict(x=1,y=0.5,xanchor="left",yanchor="middle",orientation="v")
         )
         st.plotly_chart(fig3, use_container_width=True)
 
